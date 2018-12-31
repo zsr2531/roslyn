@@ -284,7 +284,7 @@
     <UsingToolNuGetRepack>true</UsingToolNuGetRepack>
     <UsingToolVSSDK>true</UsingToolVSSDK>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
-    <UsingToolIbcOptimization>true</UsingToolIbcOptimization>
+    <UsingToolIbcOptimization>false</UsingToolIbcOptimization>
     <UsingToolXliff>true</UsingToolXliff>
     <UsingToolXUnit>true</UsingToolXUnit>
 

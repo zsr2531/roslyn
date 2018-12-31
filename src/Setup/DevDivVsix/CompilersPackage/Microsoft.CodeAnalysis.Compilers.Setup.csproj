@@ -59,7 +59,7 @@
   <Target Name="_GenerateSwrFile" 
           AfterTargets="Build"
           BeforeTargets="SwixBuild"
-          DependsOnTargets="_SetSwrFilePath;InitializeCompilerArtifacts;_PrepareCompilerArtifactsForOptimization;ApplyOptimizations"
+          DependsOnTargets="_SetSwrFilePath;InitializeCompilerArtifacts;_PrepareCompilerArtifactsForOptimization;PostLinkOptimize"
           Outputs="$(_SwrFilePath)">
 
     <ItemGroup>

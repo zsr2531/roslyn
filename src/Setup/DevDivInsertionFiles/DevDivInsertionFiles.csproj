@@ -175,7 +175,7 @@
   <Target Name="_CopyPackagesToInsert"
           AfterTargets="Build"
           Condition="'$(Configuration)' == 'Release' and '$(ContinuousIntegrationBuild)' == 'true'"
-          DependsOnTargets="_CalculateDependenciesToInsert;_UnpackOptimizedDependencies;ApplyOptimizations">
+          DependsOnTargets="_CalculateDependenciesToInsert;_UnpackOptimizedDependencies;PostLinkOptimize">
 
     <MakeDir Directories="$(DevDivPackagesDir)"/>
 

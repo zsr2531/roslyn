@@ -27,9 +27,9 @@ jobs:
       signType: real
     condition: and(succeeded(), in(variables['PB_SignType'], 'test', 'real'))
 
-  - task: ms-vseng.MicroBuildTasks.965C8DC6-1483-45C9-B384-5AC75DA1F1A4.MicroBuildOptProfPlugin@1
+  - task: ms-vseng.MicroBuildTasks.965C8DC6-1483-45C9-B384-5AC75DA1F1A4.MicroBuildOptProfPlugin@2
     inputs:
-      skipRunOptimize: true
+      skipRunOptimize: false
     displayName: 'Install OptProf Plugin'
 
   - task: ms-vseng.MicroBuildTasks.32f78468-e895-4f47-962c-58a699361df8.MicroBuildSwixPlugin@1

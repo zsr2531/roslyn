@@ -81,7 +81,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.AsyncComplet
 
             var sourceText = document.GetTextSynchronously(cancellationToken);
 
-            return ShouldTriggerCompletion(trigger, triggerLocation, sourceText, document, service) 
+            return ShouldTriggerCompletion(trigger, triggerLocation, sourceText, document, service)
                 ? new AsyncCompletionData.CompletionStartData(
                     participation: AsyncCompletionData.CompletionParticipation.ProvidesItems,
                     applicableToSpan: new SnapshotSpan(
@@ -98,7 +98,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.AsyncComplet
             CompletionService completionService)
         {
             // The trigger reason guarantees that user wants a completion.
-            if (trigger.Reason == AsyncCompletionData.CompletionTriggerReason.Invoke || 
+            if (trigger.Reason == AsyncCompletionData.CompletionTriggerReason.Invoke ||
                 trigger.Reason == AsyncCompletionData.CompletionTriggerReason.InvokeAndCommitIfUnique)
             {
                 return true;

@@ -103,7 +103,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem
                 {
                     await _threadingContext.JoinableTaskFactory.SwitchToMainThreadAsync();
                     var fileChangeService = (IVsAsyncFileChangeEx)await asyncServiceProvider.GetServiceAsync(typeof(SVsFileChangeEx)).ConfigureAwait(true);
-                    
+
                     fileChangeWatcherProvider.SetFileChangeService(fileChangeService);
                 });
         }

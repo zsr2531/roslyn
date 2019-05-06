@@ -81,7 +81,10 @@ namespace Microsoft.CodeAnalysis.CompilerServer
 
         internal int RunShutdown(string pipeName, bool waitForProcess = true, TimeSpan? timeout = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return RunShutdownAsync(pipeName, waitForProcess, timeout, cancellationToken).GetAwaiter().GetResult();
+            CompilerServerLogger.Log("Shutdown requested. WaitForProcess: {0}, Timeout (ms): {1}", waitForProcess, timeout?.TotalMilliseconds ?? -1);
+            var result = RunShutdownAsync(pipeName, waitForProcess, timeout, cancellationToken).GetAwaiter().GetResult();
+            CompilerServerLogger.Log("Server shutdown result: {0}", result);
+            return result;
         }
 
         /// <summary>
@@ -116,6 +119,7 @@ namespace Microsoft.CodeAnalysis.CompilerServer
                     {
                         try
                         {
+                            CompilerServerLogger.Log("Waiting for process: {0}", shutdownResponse.ServerProcessId);
                             var process = Process.GetProcessById(shutdownResponse.ServerProcessId);
                             process.WaitForExit();
                         }

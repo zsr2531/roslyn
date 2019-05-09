@@ -60,6 +60,8 @@ namespace Microsoft.CodeAnalysis.Remote
         {
             _shutdownCancellationSource = new CancellationTokenSource();
 
+            this.Disconnected += (s, a) => _shutdownCancellationSource.Cancel();
+
             // this service provide a way for client to make sure remote host is alive
             StartService();
         }
@@ -95,13 +97,6 @@ namespace Microsoft.CodeAnalysis.Remote
 
                 return _host;
             }, cancellationToken);
-        }
-
-        protected override void OnDisconnected(JsonRpcDisconnectedEventArgs e)
-        {
-            _shutdownCancellationSource.Cancel();
-
-            base.OnDisconnected(e);
         }
 
         public void UpdateSolutionStorageLocation(SolutionId solutionId, string storageLocation, CancellationToken cancellationToken)

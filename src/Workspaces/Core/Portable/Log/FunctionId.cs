@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 namespace Microsoft.CodeAnalysis.Internal.Log
 {
@@ -62,6 +62,8 @@ namespace Microsoft.CodeAnalysis.Internal.Log
         CommandHandler_ExecuteHandlers,
         CommandHandler_FormatCommand,
         CommandHandler_CompleteStatement,
+        CommandHandler_ToggleBlockComment,
+        CommandHandler_ToggleLineComment,
 
         Workspace_SourceText_GetChangeRanges,
         Workspace_Recoverable_RecoverRootAsync,
@@ -458,5 +460,6 @@ namespace Microsoft.CodeAnalysis.Internal.Log
         Intellisense_CompletionProviders_Data,
 
         SnapshotService_IsExperimentEnabledAsync,
+        PartialLoad_FullyLoaded,
     }
 }

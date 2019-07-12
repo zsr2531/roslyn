@@ -5,7 +5,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Microsoft.CodeAnalysis.ExpressionEvaluator</RootNamespace>
     <AssemblyName>Microsoft.CodeAnalysis.ExpressionEvaluator.ResultProvider</AssemblyName>
-    <EnableNgenOptimization>false</EnableNgenOptimization>
+    <EnableNgenOptimization>true</EnableNgenOptimization>
     <!-- We need to support Windows OneCore, which runs Core CLR 1.0 (Windows OneCore) -->
     <TargetFramework>netstandard1.3</TargetFramework>
   </PropertyGroup>

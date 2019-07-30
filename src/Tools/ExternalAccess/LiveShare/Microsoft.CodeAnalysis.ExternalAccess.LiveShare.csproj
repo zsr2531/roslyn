@@ -13,7 +13,6 @@
     </PackageDescription>
     <CreateVsixContainer>false</CreateVsixContainer>
     <GeneratePkgDefFile>true</GeneratePkgDefFile>
-    <Ngen>false</Ngen>
   </PropertyGroup>
 
   <ItemGroup>

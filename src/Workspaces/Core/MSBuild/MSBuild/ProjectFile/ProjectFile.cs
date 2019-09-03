@@ -119,6 +119,13 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 outputRefFilePath = GetAbsolutePathRelativeToProject(outputRefFilePath);
             }
 
+            // Right now VB doesn't have the concept of "default namespace". But we conjure one in workspace 
+            // by assigning the value of the project's root namespace to it. So various feature can choose to 
+            // use it for their own purpose.
+            // In the future, we might consider officially exposing "default namespace" for VB project 
+            // (e.g. through a <defaultnamespace> msbuild property)
+            var defaultNamespace = project.ReadPropertyString(PropertyNames.RootNamespace) ?? string.Empty;
+
             var targetFramework = project.ReadPropertyString(PropertyNames.TargetFramework);
             if (string.IsNullOrWhiteSpace(targetFramework))
             {
@@ -131,7 +138,11 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 .ToImmutableArray();
 
             var additionalDocs = project.GetAdditionalFiles()
-                .Select(MakeAdditionalDocumentFileInfo)
+                .Select(MakeNonSourceFileDocumentFileInfo)
+                .ToImmutableArray();
+
+            var analyzerConfigDocs = project.GetEditorConfigFiles()
+                .Select(MakeNonSourceFileDocumentFileInfo)
                 .ToImmutableArray();
 
             return ProjectFileInfo.Create(
@@ -139,10 +150,12 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 project.FullPath,
                 outputFilePath,
                 outputRefFilePath,
+                defaultNamespace,
                 targetFramework,
                 commandLineArgs,
                 docs,
                 additionalDocs,
+                analyzerConfigDocs,
                 project.GetProjectReferences().ToImmutableArray(),
                 Log);
         }
@@ -179,7 +192,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
             return new DocumentFileInfo(filePath, logicalPath, isLinked, isGenerated, sourceCodeKind);
         }
 
-        private DocumentFileInfo MakeAdditionalDocumentFileInfo(MSB.Framework.ITaskItem documentItem)
+        private DocumentFileInfo MakeNonSourceFileDocumentFileInfo(MSB.Framework.ITaskItem documentItem)
         {
             var filePath = GetDocumentFilePath(documentItem);
             var logicalPath = GetDocumentLogicalPath(documentItem, _projectDirectory);

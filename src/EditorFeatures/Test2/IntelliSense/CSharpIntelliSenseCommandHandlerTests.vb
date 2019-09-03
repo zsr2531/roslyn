@@ -11,7 +11,8 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense
             End Get
         End Property
 
-        <MemberData(NameOf(AllCompletionImplementations))> <WpfTheory>
+        <MemberData(NameOf(AllCompletionImplementations))>
+        <WpfTheory, Trait(Traits.Feature, Traits.Features.Completion)>
         Public Async Function TestOpenParenDismissesCompletionAndBringsUpSignatureHelp1(completionImplementation As CompletionImplementation) As Task
             Using state = TestStateFactory.CreateCSharpTestState(completionImplementation,
                               <Document>
@@ -36,7 +37,8 @@ class C
         End Function
 
         <WorkItem(543913, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/543913")>
-        <MemberData(NameOf(AllCompletionImplementations))> <WpfTheory>
+        <MemberData(NameOf(AllCompletionImplementations))>
+        <WpfTheory, Trait(Traits.Feature, Traits.Features.Completion)>
         Public Async Function TestEscapeDismissesCompletionFirst(completionImplementation As CompletionImplementation) As Task
             Using state = TestStateFactory.CreateCSharpTestState(completionImplementation,
                               <Document>
@@ -52,11 +54,9 @@ class C
                 state.SendTypeChars("Goo(a")
                 Await state.AssertCompletionSession()
                 Await state.AssertSignatureHelpSession()
-                Await state.WaitForAsynchronousOperationsAsync()
                 state.SendEscape()
                 Await state.AssertNoCompletionSession()
                 Await state.AssertSignatureHelpSession()
-                Await state.WaitForAsynchronousOperationsAsync()
                 state.SendEscape()
                 Await state.AssertNoCompletionSession()
                 Await state.AssertNoSignatureHelpSession()
@@ -64,7 +64,8 @@ class C
         End Function
 
         <WorkItem(531149, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/531149")>
-        <MemberData(NameOf(AllCompletionImplementations))> <WpfTheory>
+        <MemberData(NameOf(AllCompletionImplementations))>
+        <WpfTheory, Trait(Traits.Feature, Traits.Features.Completion)>
         Public Async Function TestCutDismissesCompletion(completionImplementation As CompletionImplementation) As Task
             Using state = TestStateFactory.CreateCSharpTestState(completionImplementation,
                               <Document>
@@ -79,7 +80,6 @@ class C
                 state.SendTypeChars("Goo(a")
                 Await state.AssertCompletionSession()
                 Await state.AssertSignatureHelpSession()
-                Await state.WaitForAsynchronousOperationsAsync()
                 state.SendCut()
                 Await state.AssertNoCompletionSession()
                 Await state.AssertSignatureHelpSession()
@@ -87,7 +87,8 @@ class C
         End Function
 
         <WorkItem(531149, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/531149")>
-        <MemberData(NameOf(AllCompletionImplementations))> <WpfTheory>
+        <MemberData(NameOf(AllCompletionImplementations))>
+        <WpfTheory, Trait(Traits.Feature, Traits.Features.Completion)>
         Public Async Function TestPasteDismissesCompletion(completionImplementation As CompletionImplementation) As Task
             Using state = TestStateFactory.CreateCSharpTestState(completionImplementation,
                               <Document>
@@ -103,7 +104,6 @@ class C
                 state.SendTypeChars("Goo(a")
                 Await state.AssertCompletionSession()
                 Await state.AssertSignatureHelpSession()
-                Await state.WaitForAsynchronousOperationsAsync()
                 state.SendPaste()
                 Await state.AssertNoCompletionSession()
                 Await state.AssertSignatureHelpSession()

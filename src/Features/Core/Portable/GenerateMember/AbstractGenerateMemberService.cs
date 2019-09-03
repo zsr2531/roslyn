@@ -29,8 +29,7 @@ namespace Microsoft.CodeAnalysis.GenerateMember
             Solution solution,
             INamedTypeSymbol typeToGenerateIn,
             bool isStatic,
-            ISet<TypeKind> typeKinds,
-            CancellationToken cancellationToken)
+            ISet<TypeKind> typeKinds)
         {
             if (typeToGenerateIn == null)
             {
@@ -154,6 +153,20 @@ namespace Microsoft.CodeAnalysis.GenerateMember
                 isStatic = false;
                 return;
             }
+            else if (syntaxFacts.IsNameOfSubpattern(expression))
+            {
+                var propertyPatternClause = expression.Ancestors().FirstOrDefault(syntaxFacts.IsPropertyPatternClause);
+
+                if (propertyPatternClause != null)
+                {
+                    // something like: { [|X|]: int i } or like: Blah { [|X|]: int i }
+                    var inferenceService = semanticDocument.Document.GetLanguageService<ITypeInferenceService>();
+                    typeToGenerateIn = inferenceService.InferType(semanticModel, propertyPatternClause, objectAsDefault: true, cancellationToken) as INamedTypeSymbol;
+
+                    isStatic = false;
+                    return;
+                }
+            }
 
             // Generating into the containing type.
             typeToGenerateIn = containingType;
@@ -163,15 +176,15 @@ namespace Microsoft.CodeAnalysis.GenerateMember
         private static void DetermineTypeToGenerateInWorker(
             SemanticModel semanticModel,
             SyntaxNode expression,
-            out INamedTypeSymbol typeToGenerateIn, 
-            out bool isStatic, 
+            out INamedTypeSymbol typeToGenerateIn,
+            out bool isStatic,
             CancellationToken cancellationToken)
         {
             var typeInfo = semanticModel.GetTypeInfo(expression, cancellationToken);
             var semanticInfo = semanticModel.GetSymbolInfo(expression, cancellationToken);
 
-            typeToGenerateIn = typeInfo.Type is ITypeParameterSymbol
-                ? ((ITypeParameterSymbol)typeInfo.Type).GetNamedTypeSymbolConstraint()
+            typeToGenerateIn = typeInfo.Type is ITypeParameterSymbol typeParameter
+                ? typeParameter.GetNamedTypeSymbolConstraint()
                 : typeInfo.Type as INamedTypeSymbol;
 
             isStatic = semanticInfo.Symbol is INamedTypeSymbol;

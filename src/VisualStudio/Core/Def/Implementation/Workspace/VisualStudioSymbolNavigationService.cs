@@ -61,7 +61,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
                 return false;
             }
 
-            options = options ?? project.Solution.Workspace.Options;
+            options ??= project.Solution.Workspace.Options;
             symbol = symbol.OriginalDefinition;
 
             // Prefer visible source locations if possible.
@@ -114,14 +114,20 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
             }
 
             // Generate new source or retrieve existing source for the symbol in question
-            var allowDecompilation = project.Solution.Workspace.Options.GetOption(FeatureOnOffOptions.NavigateToDecompiledSources) && !symbol.IsFromSource();
-            if (allowDecompilation && !project.Solution.Workspace.Options.GetOption(FeatureOnOffOptions.AcceptedDecompilerDisclaimer))
+            var allowDecompilation = false;
+
+            // Check whether decompilation is supported for the project. We currently only support this for C# projects.
+            if (project.LanguageServices.GetService<IDecompiledSourceService>() != null)
             {
-                var notificationService = project.Solution.Workspace.Services.GetService<INotificationService>();
-                allowDecompilation = notificationService.ConfirmMessageBox(ServicesVSResources.Decompiler_Legal_Notice_Message, ServicesVSResources.Decompiler_Legal_Notice_Title, NotificationSeverity.Warning);
-                if (allowDecompilation)
+                allowDecompilation = project.Solution.Workspace.Options.GetOption(FeatureOnOffOptions.NavigateToDecompiledSources) && !symbol.IsFromSource();
+                if (allowDecompilation && !project.Solution.Workspace.Options.GetOption(FeatureOnOffOptions.AcceptedDecompilerDisclaimer))
                 {
-                    project.Solution.Workspace.Options = project.Solution.Workspace.Options.WithChangedOption(FeatureOnOffOptions.AcceptedDecompilerDisclaimer, true);
+                    var notificationService = project.Solution.Workspace.Services.GetService<INotificationService>();
+                    allowDecompilation = notificationService.ConfirmMessageBox(ServicesVSResources.Decompiler_Legal_Notice_Message, ServicesVSResources.Decompiler_Legal_Notice_Title, NotificationSeverity.Warning);
+                    if (allowDecompilation)
+                    {
+                        project.Solution.Workspace.Options = project.Solution.Workspace.Options.WithChangedOption(FeatureOnOffOptions.AcceptedDecompilerDisclaimer, true);
+                    }
                 }
             }
 
@@ -185,7 +191,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
                 return false;
             }
 
-            int returnCode = navigationNotify.OnBeforeNavigateToSymbol(
+            var returnCode = navigationNotify.OnBeforeNavigateToSymbol(
                 hierarchy,
                 itemID,
                 rqName,
@@ -237,7 +243,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
 
             var navigateToTextSpan = new Microsoft.VisualStudio.TextManager.Interop.TextSpan[1];
 
-            int queryNavigateStatusCode = navigationNotify.QueryNavigateToSymbol(
+            var queryNavigateStatusCode = navigationNotify.QueryNavigateToSymbol(
                 hierarchy,
                 itemID,
                 rqName,

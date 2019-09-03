@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Execution;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Remote;
 using Microsoft.CodeAnalysis.Remote.Shared;
@@ -62,7 +63,7 @@ namespace Roslyn.Assets
                 }
 
                 // get new solution info
-                var solutionInfo = await solutionCreator.CreateSolutionInfoAsync(solutionChecksum).ConfigureAwait(false);
+                var solutionInfo = await SolutionInfoCreator.CreateSolutionInfoAsync(assetService, solutionChecksum, cancellationToken).ConfigureAwait(false);
 
                 // otherwise, just return new solution
                 return adhocWorkspace.AddSolution(solutionInfo);

@@ -22,11 +22,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
 {
     internal class GenerateTypeDialogViewModel : AbstractNotifyPropertyChanged
     {
-        private Document _document;
-        private INotificationService _notificationService;
-        private IProjectManagementService _projectManagementService;
-        private ISyntaxFactsService _syntaxFactsService;
-        private GenerateTypeDialogOptions _generateTypeDialogOptions;
+        private readonly Document _document;
+        private readonly INotificationService _notificationService;
+        private readonly IProjectManagementService _projectManagementService;
+        private readonly ISyntaxFactsService _syntaxFactsService;
+        private readonly GenerateTypeDialogOptions _generateTypeDialogOptions;
         private string _typeName;
         private bool _isNewFile;
 
@@ -37,11 +37,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
         private List<string> _csharpTypeKindList;
         private List<string> _visualBasicTypeKindList;
 
-        private string _csharpExtension = ".cs";
-        private string _visualBasicExtension = ".vb";
+        private readonly string _csharpExtension = ".cs";
+        private readonly string _visualBasicExtension = ".vb";
 
         // reserved names that cannot be a folder name or filename
-        private string[] _reservedKeywords = new string[]
+        private readonly string[] _reservedKeywords = new string[]
                                                 {
                                                     "con", "prn", "aux", "nul",
                                                     "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
@@ -288,27 +288,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
                 {
                     this.FullFilePath = Path.GetFullPath(this.FullFilePath);
                 }
-                catch (ArgumentNullException e)
-                {
-                    SendFailureNotification(e.Message);
-                    return false;
-                }
-                catch (ArgumentException e)
-                {
-                    SendFailureNotification(e.Message);
-                    return false;
-                }
-                catch (SecurityException e)
-                {
-                    SendFailureNotification(e.Message);
-                    return false;
-                }
-                catch (NotSupportedException e)
-                {
-                    SendFailureNotification(e.Message);
-                    return false;
-                }
-                catch (PathTooLongException e)
+                catch (Exception e)
                 {
                     SendFailureNotification(e.Message);
                     return false;
@@ -319,7 +299,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
                 if (lastIndexOfSeparatorInFullPath != -1)
                 {
                     var fileNameInFullPathInContainers = this.FullFilePath.Split(new[] { '\\' }, StringSplitOptions.RemoveEmptyEntries);
-                    this.FullFilePath = string.Join("\\", fileNameInFullPathInContainers.Select(str => str.TrimStart()));
+
+                    // Trim spaces of each component of the file name.
+                    // Note that path normalization changed between 4.6.1 and 4.6.2 and GetFullPath no longer trims trailing spaces.
+                    // See https://blogs.msdn.microsoft.com/jeremykuhne/2016/06/21/more-on-new-net-path-handling/
+                    this.FullFilePath = string.Join("\\", fileNameInFullPathInContainers.Select(str => str.Trim()));
                 }
 
                 string projectRootPath = null;
@@ -766,14 +750,14 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
             _notificationService = notificationService;
 
             this.AccessList = document.Project.Language == LanguageNames.CSharp
-                ? _csharpAccessList 
+                ? _csharpAccessList
                 : _visualBasicAccessList;
-            this.AccessSelectIndex = this.AccessList.Contains(accessSelectString) 
+            this.AccessSelectIndex = this.AccessList.Contains(accessSelectString)
                 ? this.AccessList.IndexOf(accessSelectString) : 0;
             this.IsAccessListEnabled = true;
 
             this.KindList = document.Project.Language == LanguageNames.CSharp
-                ? _csharpTypeKindList 
+                ? _csharpTypeKindList
                 : _visualBasicTypeKindList;
             this.KindSelectIndex = this.KindList.Contains(typeKindSelectString)
                 ? this.KindList.IndexOf(typeKindSelectString) : 0;
@@ -798,7 +782,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
 
         public class ProjectSelectItem
         {
-            private Project _project;
+            private readonly Project _project;
 
             public string Name
             {
@@ -824,7 +808,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
 
         public class DocumentSelectItem
         {
-            private Document _document;
+            private readonly Document _document;
             public Document Document
             {
                 get
@@ -833,7 +817,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.GenerateType
                 }
             }
 
-            private string _name;
+            private readonly string _name;
             public string Name
             {
                 get

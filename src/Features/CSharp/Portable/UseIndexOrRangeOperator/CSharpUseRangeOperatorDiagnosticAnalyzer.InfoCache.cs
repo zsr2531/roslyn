@@ -1,11 +1,12 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Linq;
+using Microsoft.CodeAnalysis.Shared.Extensions;
 
 namespace Microsoft.CodeAnalysis.CSharp.UseIndexOrRangeOperator
 {
-    using System.Diagnostics;
     using static Helpers;
 
     internal partial class CSharpUseRangeOperatorDiagnosticAnalyzer
@@ -19,24 +20,30 @@ namespace Microsoft.CodeAnalysis.CSharp.UseIndexOrRangeOperator
             /// The System.Range type.  Needed so that we only fixup code if we see the type
             /// we're using has an indexer that takes a Range.
             /// </summary>
-            private readonly INamedTypeSymbol _rangeType;
+            public readonly INamedTypeSymbol RangeType;
             private readonly ConcurrentDictionary<IMethodSymbol, MemberInfo> _methodToMemberInfo;
 
             public InfoCache(Compilation compilation)
             {
-                _rangeType = compilation.GetTypeByMetadataName("System.Range");
+                RangeType = compilation.GetTypeByMetadataName("System.Range");
 
                 _methodToMemberInfo = new ConcurrentDictionary<IMethodSymbol, MemberInfo>();
 
                 // Always allow using System.Range indexers with System.String.Substring.  The
                 // compiler has hard-coded knowledge on how to use this type, even if there is no
                 // this[Range] indexer declared on it directly.
+                //
+                // Ensure that we can actually get the 'string' type. We may fail if there is no
+                // proper mscorlib reference (for example, while a project is loading).
                 var stringType = compilation.GetSpecialType(SpecialType.System_String);
-                var substringMethod = stringType.GetMembers(nameof(string.Substring))
-                                                .OfType<IMethodSymbol>()
-                                                .FirstOrDefault(m => IsSliceLikeMethod(m));
+                if (!stringType.IsErrorType())
+                {
+                    var substringMethod = stringType.GetMembers(nameof(string.Substring))
+                                                    .OfType<IMethodSymbol>()
+                                                    .FirstOrDefault(m => IsSliceLikeMethod(m));
 
-                _methodToMemberInfo[substringMethod] = ComputeMemberInfo(substringMethod, requireRangeMember: false);
+                    _methodToMemberInfo[substringMethod] = ComputeMemberInfo(substringMethod, requireRangeMember: false);
+                }
             }
 
             private IMethodSymbol GetSliceLikeMethod(INamedTypeSymbol namedType)
@@ -82,7 +89,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UseIndexOrRangeOperator
                     // it's a method like:  MyType MyType.Slice(int start, int length).  Look for an
                     // indexer like  `MyType MyType.this[Range range]`. If we can't find one return
                     // 'default' so we'll consider this named-type non-viable.
-                    var indexer = GetIndexer(containingType, _rangeType, containingType);
+                    var indexer = GetIndexer(containingType, RangeType, containingType);
                     if (indexer != null)
                     {
                         return new MemberInfo(lengthLikeProperty, overloadedMethodOpt: null);
@@ -91,7 +98,7 @@ namespace Microsoft.CodeAnalysis.CSharp.UseIndexOrRangeOperator
 
                 // it's a method like:   `SomeType MyType.Slice(int start, int length)`.  Look 
                 // for an overload like: `SomeType MyType.Slice(Range)`
-                var overloadedRangeMethod = GetOverload(sliceLikeMethod, _rangeType);
+                var overloadedRangeMethod = GetOverload(sliceLikeMethod, RangeType);
                 if (overloadedRangeMethod != null)
                 {
                     return new MemberInfo(lengthLikeProperty, overloadedRangeMethod);

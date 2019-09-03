@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.Host;
 using Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel;
 using Microsoft.VisualStudio.LanguageServices.Implementation.TaskList;
 using Microsoft.VisualStudio.LanguageServices.ProjectSystem;
+using Microsoft.VisualStudio.Shell.Interop;
 using Roslyn.Utilities;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.CPS
@@ -26,7 +27,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
 
         private readonly VisualStudioWorkspaceImpl _visualStudioWorkspace;
         private readonly IProjectCodeModel _projectCodeModel;
-        private readonly ProjectExternalErrorReporter _externalErrorReporterOpt;
+        private readonly Lazy<ProjectExternalErrorReporter> _externalErrorReporterOpt;
 
         public string DisplayName
         {
@@ -52,11 +53,23 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
             set => _visualStudioProject.HasAllInformation = value;
         }
 
-        public CPSProject(VisualStudioProject visualStudioProject, VisualStudioWorkspaceImpl visualStudioWorkspace, IProjectCodeModelFactory projectCodeModelFactory, ProjectExternalErrorReporter errorReporterOpt, Guid projectGuid, string binOutputPath)
+        public CPSProject(VisualStudioProject visualStudioProject, VisualStudioWorkspaceImpl visualStudioWorkspace, IProjectCodeModelFactory projectCodeModelFactory, Guid projectGuid, string binOutputPath)
         {
             _visualStudioProject = visualStudioProject;
             _visualStudioWorkspace = visualStudioWorkspace;
-            _externalErrorReporterOpt = errorReporterOpt;
+
+            _externalErrorReporterOpt = new Lazy<ProjectExternalErrorReporter>(() =>
+            {
+                var prefix = visualStudioProject.Language switch
+                {
+                    LanguageNames.CSharp => "CS",
+                    LanguageNames.VisualBasic => "BC",
+                    LanguageNames.FSharp => "FS",
+                    _ => null
+                };
+
+                return (prefix != null) ? new ProjectExternalErrorReporter(visualStudioProject.Id, prefix, visualStudioWorkspace) : null;
+            });
 
             _projectCodeModel = projectCodeModelFactory.CreateProjectCodeModel(visualStudioProject.Id, new CPSCodeModelInstanceFactory(this));
 
@@ -64,6 +77,9 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
             if (visualStudioWorkspace.Services.GetLanguageServices(visualStudioProject.Language).GetService<ICommandLineParserService>() != null)
             {
                 _visualStudioProjectOptionsProcessor = new VisualStudioProjectOptionsProcessor(_visualStudioProject, visualStudioWorkspace.Services);
+                _visualStudioWorkspace.AddProjectRuleSetFileToInternalMaps(
+                    visualStudioProject,
+                    () => _visualStudioProjectOptionsProcessor.EffectiveRuleSetFilePath);
             }
 
             Guid = projectGuid;
@@ -123,6 +139,29 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
             }
         }
 
+        public string DefaultNamespace
+        {
+            get => _visualStudioProject.DefaultNamespace;
+            private set => _visualStudioProject.DefaultNamespace = value;
+        }
+
+        public void SetProperty(string name, string value)
+        {
+            if (name == AdditionalPropertyNames.RootNamespace)
+            {
+                // Right now VB doesn't have the concept of "default namespace". But we conjure one in workspace 
+                // by assigning the value of the project's root namespace to it. So various feature can choose to 
+                // use it for their own purpose.
+                // In the future, we might consider officially exposing "default namespace" for VB project 
+                // (e.g. through a <defaultnamespace> msbuild property)
+                DefaultNamespace = value;
+            }
+            else if (name == AdditionalPropertyNames.MaxSupportedLangVersion)
+            {
+                _visualStudioProject.MaxLangVersion = value;
+            }
+        }
+
         public void AddMetadataReference(string referencePath, MetadataReferenceProperties properties)
         {
             referencePath = FileUtilities.NormalizeAbsolutePath(referencePath);
@@ -156,6 +195,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
         public void RemoveSourceFile(string filePath)
         {
             _visualStudioProject.RemoveSourceFile(filePath);
+            _projectCodeModel.OnSourceFileRemoved(filePath);
         }
 
         public void AddAdditionalFile(string filePath, bool isInCurrentContext = true)
@@ -186,10 +226,12 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
 
         public void AddDynamicFile(string filePath, IEnumerable<string> folderNames = null)
         {
+            _visualStudioProject.AddDynamicSourceFile(filePath, folderNames.ToImmutableArrayOrEmpty());
         }
 
-        public void RemoveDynamicFile(string fullPath)
+        public void RemoveDynamicFile(string filePath)
         {
+            _visualStudioProject.RemoveDynamicSourceFile(filePath);
         }
 
         public void SetRuleSetFile(string filePath)
@@ -210,9 +252,24 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.C
             scope.Dispose();
         }
 
+        public void ReorderSourceFiles(IEnumerable<string> filePaths)
+        {
+            _visualStudioProject.ReorderSourceFiles(filePaths.ToImmutableArrayOrEmpty());
+        }
+
         internal VisualStudioProject GetProject_TestOnly()
         {
             return _visualStudioProject;
+        }
+
+        public void AddAnalyzerConfigFile(string filePath)
+        {
+            _visualStudioProject.AddAnalyzerConfigFile(filePath);
+        }
+
+        public void RemoveAnalyzerConfigFile(string filePath)
+        {
+            _visualStudioProject.RemoveAnalyzerConfigFile(filePath);
         }
     }
 }

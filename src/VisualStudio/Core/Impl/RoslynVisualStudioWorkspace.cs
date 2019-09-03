@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.Editor.GoToDefinition;
 using Microsoft.CodeAnalysis.Editor.Host;
 using Microsoft.CodeAnalysis.Editor.Undo;
 using Microsoft.CodeAnalysis.FindSymbols;
+using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.VisualStudio.Composition;
@@ -18,7 +19,6 @@ using Microsoft.VisualStudio.LanguageServices.Implementation.Interop;
 using Microsoft.VisualStudio.LanguageServices.Implementation.Library.ObjectBrowser.Lists;
 using Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using Roslyn.Utilities;
 using IAsyncServiceProvider = Microsoft.VisualStudio.Shell.IAsyncServiceProvider;
 
@@ -28,52 +28,22 @@ namespace Microsoft.VisualStudio.LanguageServices
     [Export(typeof(VisualStudioWorkspaceImpl))]
     internal class RoslynVisualStudioWorkspace : VisualStudioWorkspaceImpl
     {
-        private readonly IEnumerable<Lazy<IStreamingFindUsagesPresenter>> _streamingPresenters;
+        /// <remarks>
+        /// Must be lazily constructed since the <see cref="IStreamingFindUsagesPresenter"/> implementation imports a
+        /// backreference to <see cref="VisualStudioWorkspace"/>.
+        /// </remarks>
+        private readonly Lazy<IStreamingFindUsagesPresenter> _streamingPresenter;
 
         [ImportingConstructor]
-        private RoslynVisualStudioWorkspace(
+        [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
+        public RoslynVisualStudioWorkspace(
             ExportProvider exportProvider,
-            [ImportMany] IEnumerable<Lazy<IStreamingFindUsagesPresenter>> streamingPresenters,
-            [ImportMany] IEnumerable<IDocumentOptionsProviderFactory> documentOptionsProviderFactories)
-            : base(exportProvider.AsExportProvider(), AsyncServiceProvider.GlobalProvider) // TODO: switch to the cleaner MEF import
+            Lazy<IStreamingFindUsagesPresenter> streamingPresenter,
+            [ImportMany] IEnumerable<IDocumentOptionsProviderFactory> documentOptionsProviderFactories,
+            [Import(typeof(SVsServiceProvider))] IAsyncServiceProvider asyncServiceProvider)
+            : base(exportProvider, asyncServiceProvider, documentOptionsProviderFactories)
         {
-            _streamingPresenters = streamingPresenters;
-
-            foreach (var providerFactory in documentOptionsProviderFactories)
-            {
-                Services.GetRequiredService<IOptionService>().RegisterDocumentOptionsProvider(providerFactory.Create(this));
-            }
-        }
-
-        public override EnvDTE.FileCodeModel GetFileCodeModel(DocumentId documentId)
-        {
-            if (documentId == null)
-            {
-                throw new ArgumentNullException(nameof(documentId));
-            }
-
-/*
-
-            var project = DeferredState.ProjectTracker.GetProject(documentId.ProjectId);
-            if (project == null)
-            {
-                throw new ArgumentException(ServicesVSResources.The_given_DocumentId_did_not_come_from_the_Visual_Studio_workspace, nameof(documentId));
-            }
-
-            var document = project.GetDocumentOrAdditionalDocument(documentId);
-            if (document == null)
-            {
-                throw new ArgumentException(ServicesVSResources.The_given_DocumentId_did_not_come_from_the_Visual_Studio_workspace, nameof(documentId));
-            }
-
-            if (project.ProjectCodeModel != null)
-            {
-                return project.ProjectCodeModel.GetOrCreateFileCodeModel(document.FilePath);
-            }
-
-    */
-
-            return null;
+            _streamingPresenter = streamingPresenter;
         }
 
         internal override IInvisibleEditor OpenInvisibleEditor(DocumentId documentId)
@@ -97,7 +67,7 @@ namespace Microsoft.VisualStudio.LanguageServices
                 }
             }
 
-            var document = this.CurrentSolution.GetDocument(documentId) ?? this.CurrentSolution.GetAdditionalDocument(documentId);
+            var document = this.CurrentSolution.GetTextDocument(documentId);
 
             return new InvisibleEditor(ServiceProvider.GlobalProvider, document.FilePath, GetHierarchy(documentId.ProjectId), needsSave, needsUndoDisabled);
         }
@@ -132,20 +102,15 @@ namespace Microsoft.VisualStudio.LanguageServices
         public override bool TryGoToDefinition(
             ISymbol symbol, Project project, CancellationToken cancellationToken)
         {
-            if (!_streamingPresenters.Any())
-            {
-                return false;
-            }
-
-            if (!TryResolveSymbol(symbol, project, cancellationToken, 
+            if (!TryResolveSymbol(symbol, project, cancellationToken,
                     out var searchSymbol, out var searchProject))
             {
                 return false;
             }
 
             return GoToDefinitionHelpers.TryGoToDefinition(
-                searchSymbol, searchProject, 
-                _streamingPresenters, cancellationToken);
+                searchSymbol, searchProject,
+                _streamingPresenter.Value, cancellationToken);
         }
 
         public override bool TryFindAllReferences(ISymbol symbol, Project project, CancellationToken cancellationToken)

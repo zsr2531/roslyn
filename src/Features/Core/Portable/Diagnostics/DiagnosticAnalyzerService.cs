@@ -255,19 +255,19 @@ namespace Microsoft.CodeAnalysis.Diagnostics
         {
             if (_map.TryGetValue(workspace, out var analyzer))
             {
-                return analyzer.ContainsDiagnostics(workspace, projectId);
+                return analyzer.ContainsDiagnostics(projectId);
             }
 
             return false;
         }
 
         // virtual for testing purposes.
-        internal virtual Action<Exception, DiagnosticAnalyzer, Diagnostic> GetOnAnalyzerException(ProjectId projectId, DiagnosticLogAggregator diagnosticLogAggregator)
+        internal virtual Action<Exception, DiagnosticAnalyzer, Diagnostic> GetOnAnalyzerException(ProjectId projectId, DiagnosticLogAggregator logAggregatorOpt)
         {
             return (ex, analyzer, diagnostic) =>
             {
                 // Log telemetry, if analyzer supports telemetry.
-                DiagnosticAnalyzerLogger.LogAnalyzerCrashCount(analyzer, ex, diagnosticLogAggregator, projectId);
+                DiagnosticAnalyzerLogger.LogAnalyzerCrashCount(analyzer, ex, logAggregatorOpt);
 
                 AnalyzerHelper.OnAnalyzerException_NoTelemetryLogging(ex, analyzer, diagnostic, _hostDiagnosticUpdateSource, projectId);
             };

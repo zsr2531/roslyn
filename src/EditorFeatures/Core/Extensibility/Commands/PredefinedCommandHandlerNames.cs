@@ -42,8 +42,7 @@ namespace Microsoft.CodeAnalysis.Editor
         public const string Commit = "Commit Command Handler";
 
         /// <summary>
-        /// Command handler name for Completion. Some additional Completion commands are handled by
-        /// the <see cref="IntelliSense"/> command handler.
+        /// Command handler name for Completion.
         /// </summary>
         public const string Completion = "Completion Command Handler";
 
@@ -88,6 +87,11 @@ namespace Microsoft.CodeAnalysis.Editor
         public const string FormatDocument = "Format Document Command Handler";
 
         /// <summary>
+        /// Command handler name for Go to Base.
+        /// </summary>
+        public const string GoToBase = "Go To Base Command Handler";
+
+        /// <summary>
         /// Command handler name for Go to Definition.
         /// </summary>
         public const string GoToDefinition = "Go To Definition Command Handler";
@@ -108,12 +112,6 @@ namespace Microsoft.CodeAnalysis.Editor
         public const string Indent = "Indent Command Handler";
 
         /// <summary>
-        /// Command handler name for IntelliSense. This command handler handles some commands for
-        /// <see cref="Completion"/>, <see cref="QuickInfo"/>, and <see cref="SignatureHelp"/>.
-        /// </summary>
-        public const string IntelliSense = nameof(IntelliSense);
-
-        /// <summary>
         /// Command handler name for Navigate to Highlighted Reference.
         /// </summary>
         public const string NavigateToHighlightedReference = "Navigate to Highlighted Reference Command Handler";
@@ -124,8 +122,7 @@ namespace Microsoft.CodeAnalysis.Editor
         public const string OrganizeDocument = "Organize Document Command Handler";
 
         /// <summary>
-        /// Command handler name for Quick Info. Some additional Quick Info commands are handled by
-        /// the <see cref="IntelliSense"/> command handler.
+        /// Command handler name for Quick Info.
         /// </summary>
         public const string QuickInfo = "Quick Info Command Handler";
 
@@ -140,10 +137,26 @@ namespace Microsoft.CodeAnalysis.Editor
         public const string RenameTrackingCancellation = "Rename Tracking Cancellation Command Handler";
 
         /// <summary>
-        /// Command handler name for Signature Help. Some additional Signature Help commands are
-        /// handled by the <see cref="IntelliSense"/> command handler.
+        /// Command handler name for a Signature Help command handler executing before <see cref="Completion"/>.
         /// </summary>
-        public const string SignatureHelp = "Signature Help Command Handler";
+        public const string SignatureHelpBeforeCompletion = "Signature Help Before Completion Command Handler";
+
+        /// <summary>
+        /// Command handler name for a Signature Help command handler executing after <see cref="Completion"/>.
+        /// </summary>
+        public const string SignatureHelpAfterCompletion = "Signature Help After Completion Command Handler";
+
+        /// <summary>
+        /// Command handler name for Toggle Block Comments.
+        /// </summary>
+        /// <remarks></remarks>
+        public const string ToggleBlockComment = "Toggle Block Comment Command Handler";
+
+        /// <summary>
+        /// Command handler name for Toggle Line Comments.
+        /// </summary>
+        /// <remarks></remarks>
+        public const string ToggleLineComment = "Toggle Line Comment Command Handler";
 
         /// <summary>
         /// Command handler name for Paste Content in Interactive Format. 

@@ -83,23 +83,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Utilities
         {
             Debug.Assert(node.IsKind(SyntaxKind.VariableDeclaration, SyntaxKind.ForEachStatement, SyntaxKind.DeclarationExpression));
 
-            switch (node)
+            return node switch
             {
-                case VariableDeclarationSyntax variableDeclaration:
-                    return ShouldAnalyzeVariableDeclaration(variableDeclaration, semanticModel, cancellationToken)
-                        ? variableDeclaration.Type
-                        : null;
-                case ForEachStatementSyntax forEachStatement:
-                    return ShouldAnalyzeForEachStatement(forEachStatement, semanticModel, cancellationToken)
-                        ? forEachStatement.Type
-                        : null;
-                case DeclarationExpressionSyntax declarationExpression:
-                    return ShouldAnalyzeDeclarationExpression(declarationExpression, semanticModel, cancellationToken)
-                        ? declarationExpression.Type
-                        : null;
-            }
-
-            return null;
+                VariableDeclarationSyntax variableDeclaration => ShouldAnalyzeVariableDeclaration(variableDeclaration, semanticModel, cancellationToken)
+                    ? variableDeclaration.Type
+                    : null,
+                ForEachStatementSyntax forEachStatement => ShouldAnalyzeForEachStatement(forEachStatement, semanticModel, cancellationToken)
+                    ? forEachStatement.Type
+                    : null,
+                DeclarationExpressionSyntax declarationExpression => ShouldAnalyzeDeclarationExpression(declarationExpression, semanticModel, cancellationToken)
+                    ? declarationExpression.Type
+                    : null,
+                _ => null,
+            };
         }
 
         protected virtual bool ShouldAnalyzeVariableDeclaration(VariableDeclarationSyntax variableDeclaration, SemanticModel semanticModel, CancellationToken cancellationToken)
@@ -121,6 +117,25 @@ namespace Microsoft.CodeAnalysis.CSharp.Utilities
             => true;
 
         protected virtual bool ShouldAnalyzeDeclarationExpression(DeclarationExpressionSyntax declaration, SemanticModel semanticModel, CancellationToken cancellationToken)
-            => true;
+        {
+            // Ensure that deconstruction assignment or foreach variable statement have a non-null deconstruct method.
+            DeconstructionInfo? deconstructionInfoOpt = null;
+            switch (declaration.Parent)
+            {
+                case AssignmentExpressionSyntax assignmentExpression:
+                    if (assignmentExpression.IsDeconstruction())
+                    {
+                        deconstructionInfoOpt = semanticModel.GetDeconstructionInfo(assignmentExpression);
+                    }
+
+                    break;
+
+                case ForEachVariableStatementSyntax forEachVariableStatement:
+                    deconstructionInfoOpt = semanticModel.GetDeconstructionInfo(forEachVariableStatement);
+                    break;
+            }
+
+            return !deconstructionInfoOpt.HasValue || !deconstructionInfoOpt.Value.Nested.IsEmpty || deconstructionInfoOpt.Value.Method != null;
+        }
     }
 }

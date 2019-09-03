@@ -331,11 +331,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         End Function
 
         Friend Overrides Function IsSystemTypeReference(type As ITypeSymbol) As Boolean
-            Return DirectCast(type, TypeSymbol) = GetWellKnownType(WellKnownType.System_Type)
+            Return TypeSymbol.Equals(DirectCast(type, TypeSymbol), GetWellKnownType(WellKnownType.System_Type), TypeCompareKind.ConsiderEverything)
         End Function
 
         Friend Overrides Function CommonGetWellKnownTypeMember(member As WellKnownMember) As ISymbol
             Return GetWellKnownTypeMember(member)
+        End Function
+
+        Friend Overrides Function CommonGetWellKnownType(wellknownType As WellKnownType) As ITypeSymbol
+            Return GetWellKnownType(wellknownType)
         End Function
 
         Friend Overrides Function IsAttributeType(type As ITypeSymbol) As Boolean

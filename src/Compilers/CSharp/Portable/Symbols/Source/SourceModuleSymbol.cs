@@ -85,7 +85,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     case Platform.X64:
                         return Machine.Amd64;
                     case Platform.Arm64:
-                        return (Machine)0xAA64;//Machine.Arm64; https://github.com/dotnet/roslyn/issues/25185
+                        return Machine.Arm64;
                     case Platform.Itanium:
                         return Machine.IA64;
                     default:
@@ -511,18 +511,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     arguments.GetOrCreateData<CommonModuleWellKnownAttributeData>().DefaultCharacterSet = charSet;
                 }
             }
-            else if (attribute.IsTargetAttribute(this, AttributeDescription.NonNullTypesAttribute))
+            else if (attribute.IsTargetAttribute(this, AttributeDescription.NullableContextAttribute))
             {
-                // NonNullTypesAttribute should not be set explicitly.
-                arguments.Diagnostics.Add(ErrorCode.ERR_ExplicitNonNullTypesAttribute, arguments.AttributeSyntaxOpt.Location);
+                ReportExplicitUseOfNullabilityAttribute(in arguments, AttributeDescription.NullableContextAttribute);
             }
-        }
-
-        public override bool? NonNullTypes
-        {
-            get
+            else if (attribute.IsTargetAttribute(this, AttributeDescription.NullablePublicOnlyAttribute))
             {
-                return _assemblySymbol.DeclaringCompilation.Options.Nullable;
+                ReportExplicitUseOfNullabilityAttribute(in arguments, AttributeDescription.NullablePublicOnlyAttribute);
             }
         }
 
@@ -541,11 +536,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 }
             }
 
-            bool? nonNullTypes = NonNullTypes;
-            if (nonNullTypes != null)
+            if (moduleBuilder.ShouldEmitNullablePublicOnlyAttribute())
             {
-                AddSynthesizedAttribute(ref attributes,
-                                        compilation.TrySynthesizeNonNullTypesAttribute(nonNullTypes.GetValueOrDefault()));
+                var includesInternals = ImmutableArray.Create(
+                    new TypedConstant(compilation.GetSpecialType(SpecialType.System_Boolean), TypedConstantKind.Primitive, _assemblySymbol.InternalsAreVisible));
+                AddSynthesizedAttribute(ref attributes, moduleBuilder.SynthesizeNullablePublicOnlyAttribute(includesInternals));
             }
         }
 

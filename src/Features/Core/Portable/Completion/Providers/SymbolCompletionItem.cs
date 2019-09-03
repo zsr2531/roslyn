@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Shared.Utilities;
-using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.CodeAnalysis.Completion.Providers
 {
@@ -83,7 +82,7 @@ namespace Microsoft.CodeAnalysis.Completion.Providers
 
         public static string EncodeSymbol(ISymbol symbol)
         {
-            return SymbolKey.ToString(symbol);
+            return SymbolKey.CreateString(symbol);
         }
 
         public static bool HasSymbols(CompletionItem item)
@@ -126,7 +125,7 @@ namespace Microsoft.CodeAnalysis.Completion.Providers
 
         private static void DecodeSymbols(List<string> ids, Compilation compilation, List<ISymbol> symbols)
         {
-            for (int i = 0; i < ids.Count;)
+            for (var i = 0; i < ids.Count;)
             {
                 var id = ids[i];
                 var symbol = DecodeSymbol(id, compilation);
@@ -144,7 +143,7 @@ namespace Microsoft.CodeAnalysis.Completion.Providers
 
         private static ISymbol DecodeSymbol(string id, Compilation compilation)
         {
-            return SymbolKey.Resolve(id, compilation).GetAnySymbol();
+            return SymbolKey.ResolveString(id, compilation).GetAnySymbol();
         }
 
         public static async Task<CompletionDescription> GetDescriptionAsync(
@@ -240,6 +239,33 @@ namespace Microsoft.CodeAnalysis.Completion.Providers
             return text;
         }
 
+        // COMPAT OVERLOAD: This is used by IntelliCode.
+        public static CompletionItem CreateWithSymbolId(
+            string displayText,
+            IReadOnlyList<ISymbol> symbols,
+            CompletionItemRules rules,
+            int contextPosition,
+            string sortText = null,
+            string insertionText = null,
+            string filterText = null,
+            SupportedPlatformData supportedPlatforms = null,
+            ImmutableDictionary<string, string> properties = null,
+            ImmutableArray<string> tags = default)
+        {
+            return CreateWithSymbolId(
+                displayText,
+                displayTextSuffix: null,
+                symbols,
+                rules,
+                contextPosition,
+                sortText,
+                insertionText,
+                filterText,
+                supportedPlatforms,
+                properties,
+                tags);
+        }
+
         public static CompletionItem CreateWithSymbolId(
             string displayText,
             string displayTextSuffix,
@@ -254,7 +280,7 @@ namespace Microsoft.CodeAnalysis.Completion.Providers
             ImmutableArray<string> tags = default)
         {
             return CreateWorker(
-                displayText, displayTextSuffix, symbols, rules, contextPosition, 
+                displayText, displayTextSuffix, symbols, rules, contextPosition,
                 AddSymbolEncoding, sortText, insertionText,
                 filterText, supportedPlatforms, properties, tags);
         }
@@ -273,7 +299,7 @@ namespace Microsoft.CodeAnalysis.Completion.Providers
             ImmutableArray<string> tags = default)
         {
             return CreateWorker(
-                displayText, displayTextSuffix, symbols, rules, contextPosition, 
+                displayText, displayTextSuffix, symbols, rules, contextPosition,
                 AddSymbolNameAndKind, sortText, insertionText,
                 filterText, supportedPlatforms, properties, tags);
         }

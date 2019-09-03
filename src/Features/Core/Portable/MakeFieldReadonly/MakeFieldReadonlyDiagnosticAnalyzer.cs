@@ -17,12 +17,11 @@ namespace Microsoft.CodeAnalysis.MakeFieldReadonly
         public MakeFieldReadonlyDiagnosticAnalyzer()
             : base(
                 IDEDiagnosticIds.MakeFieldReadonlyDiagnosticId,
+                CodeStyleOptions.PreferReadonly,
                 new LocalizableResourceString(nameof(FeaturesResources.Add_readonly_modifier), FeaturesResources.ResourceManager, typeof(FeaturesResources)),
                 new LocalizableResourceString(nameof(FeaturesResources.Make_field_readonly), FeaturesResources.ResourceManager, typeof(FeaturesResources)))
         {
         }
-
-        public override bool OpenFileOnly(Workspace workspace) => false;
 
         public override DiagnosticAnalyzerCategory GetAnalyzerCategory() => DiagnosticAnalyzerCategory.SemanticDocumentAnalysis;
 
@@ -62,7 +61,7 @@ namespace Microsoft.CodeAnalysis.MakeFieldReadonly
                 void AnalyzeOperation(OperationAnalysisContext operationContext)
                 {
                     var fieldReference = (IFieldReferenceOperation)operationContext.Operation;
-                    (bool isCandidate, bool written) = TryGetOrInitializeFieldState(fieldReference.Field, operationContext.Options, operationContext.CancellationToken);
+                    var (isCandidate, written) = TryGetOrInitializeFieldState(fieldReference.Field, operationContext.Options, operationContext.CancellationToken);
 
                     // Ignore fields that are not candidates or have already been written outside the constructor/field initializer.
                     if (!isCandidate || written)
@@ -85,7 +84,7 @@ namespace Microsoft.CodeAnalysis.MakeFieldReadonly
                     {
                         if (member is IFieldSymbol field && fieldStateMap.TryRemove(field, out var value))
                         {
-                            (bool isCandidate, bool written) = value;
+                            var (isCandidate, written) = value;
                             if (isCandidate && !written)
                             {
                                 var option = GetCodeStyleOption(field, symbolEndContext.Options, symbolEndContext.CancellationToken);
@@ -101,13 +100,14 @@ namespace Microsoft.CodeAnalysis.MakeFieldReadonly
                     }
                 }
 
-                bool IsCandidateField(IFieldSymbol symbol) =>
+                static bool IsCandidateField(IFieldSymbol symbol) =>
                         symbol.DeclaredAccessibility == Accessibility.Private &&
                         !symbol.IsReadOnly &&
                         !symbol.IsConst &&
                         !symbol.IsImplicitlyDeclared &&
                         symbol.Locations.Length == 1 &&
-                        symbol.Type.IsMutableValueType() == false;
+                        symbol.Type.IsMutableValueType() == false &&
+                        !symbol.IsFixedSizeBuffer;
 
                 // Method to update the field state for a candidate field written outside constructor and field initializer.
                 void UpdateFieldStateOnWrite(IFieldSymbol field)
@@ -136,7 +136,7 @@ namespace Microsoft.CodeAnalysis.MakeFieldReadonly
                 }
 
                 // Method to compute the initial field state.
-                (bool isCandidate, bool written) ComputeInitialFieldState(IFieldSymbol field, AnalyzerOptions options, CancellationToken cancellationToken)
+                static (bool isCandidate, bool written) ComputeInitialFieldState(IFieldSymbol field, AnalyzerOptions options, CancellationToken cancellationToken)
                 {
                     Debug.Assert(IsCandidateField(field));
 

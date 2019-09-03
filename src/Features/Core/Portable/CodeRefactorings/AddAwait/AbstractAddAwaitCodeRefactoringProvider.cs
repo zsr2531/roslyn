@@ -21,36 +21,21 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.AddAwait
     /// Or:
     ///     var x = await GetAsync().ConfigureAwait(false);
     /// </summary>
-    internal abstract class AbstractAddAwaitCodeRefactoringProvider<TExpressionSyntax, TInvocationExpressionSyntax> : CodeRefactoringProvider
-        where TExpressionSyntax : SyntaxNode
-        where TInvocationExpressionSyntax : TExpressionSyntax
+    internal abstract class AbstractAddAwaitCodeRefactoringProvider<TInvocationExpressionSyntax> : CodeRefactoringProvider
+        where TInvocationExpressionSyntax : SyntaxNode
     {
         protected abstract string GetTitle();
         protected abstract string GetTitleWithConfigureAwait();
 
         public sealed override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
         {
-            var document = context.Document;
-            var textSpan = context.Span;
-            var cancellationToken = context.CancellationToken;
+            var (document, _, cancellationToken) = context;
 
-            if (!textSpan.IsEmpty)
-            {
-                return;
-            }
-
-            var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            var token = root.FindTokenOnLeftOfPosition(textSpan.Start);
-
-            var model = await document.GetSemanticModelAsync(cancellationToken);
+            var model = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
             var syntaxFacts = document.GetLanguageService<ISyntaxFactsService>();
-            var awaitable = GetAwaitableExpression(textSpan, token, model, syntaxFacts, cancellationToken);
-            if (awaitable == null)
-            {
-                return;
-            }
 
-            if (awaitable.OverlapsHiddenPosition(cancellationToken))
+            var awaitable = await context.TryGetRelevantNodeAsync<TInvocationExpressionSyntax>().ConfigureAwait(false);
+            if (awaitable == null || !IsValidAwaitableExpression(awaitable, model, syntaxFacts))
             {
                 return;
             }
@@ -58,40 +43,46 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.AddAwait
             context.RegisterRefactoring(
                 new MyCodeAction(
                     GetTitle(),
-                    c => AddAwaitAsync(document, awaitable, withConfigureAwait: false, c)));
+                    c => AddAwaitAsync(document, awaitable, withConfigureAwait: false, c)),
+                awaitable.Span);
 
 
             context.RegisterRefactoring(
                 new MyCodeAction(
                     GetTitleWithConfigureAwait(),
-                    c => AddAwaitAsync(document, awaitable, withConfigureAwait: true, c)));
+                    c => AddAwaitAsync(document, awaitable, withConfigureAwait: true, c)),
+                awaitable.Span);
         }
 
-        private TExpressionSyntax GetAwaitableExpression(TextSpan textSpan, SyntaxToken token, SemanticModel model, ISyntaxFactsService syntaxFacts, CancellationToken cancellationToken)
+        private bool IsValidAwaitableExpression(SyntaxNode invocation, SemanticModel model, ISyntaxFactsService syntaxFacts)
         {
-            var invocation = token.GetAncestor<TInvocationExpressionSyntax>();
-            if (invocation is null)
+            if (syntaxFacts.IsExpressionOfInvocationExpression(invocation.Parent))
             {
-                return null;
+                // Do not offer fix on `MethodAsync()$$.ConfigureAwait()`
+                // Do offer fix on `MethodAsync()$$.Invalid()`
+                if (!model.GetTypeInfo(invocation.Parent.Parent).Type.IsErrorType())
+                {
+                    return false;
+                }
             }
 
             if (syntaxFacts.IsExpressionOfAwaitExpression(invocation))
             {
-                return null;
+                return false;
             }
 
             var type = model.GetTypeInfo(invocation).Type;
-            if (type?.IsAwaitableNonDynamic(model, token.SpanStart) == true)
+            if (type?.IsAwaitableNonDynamic(model, invocation.SpanStart) == true)
             {
-                return invocation;
+                return true;
             }
 
-            return null;
+            return false;
         }
 
         private async Task<Document> AddAwaitAsync(
             Document document,
-            TExpressionSyntax invocation,
+            TInvocationExpressionSyntax invocation,
             bool withConfigureAwait,
             CancellationToken cancellationToken)
         {
@@ -108,13 +99,13 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.AddAwait
                 .AddParentheses(syntaxGenerator.AwaitExpression(withoutTrivia))
                 .WithTriviaFrom(invocation);
 
-            return await document.ReplaceNodeAsync(invocation, awaitExpression, cancellationToken);
+            return await document.ReplaceNodeAsync(invocation, awaitExpression, cancellationToken).ConfigureAwait(false); ;
         }
 
         private class MyCodeAction : CodeAction.DocumentChangeAction
         {
-            public MyCodeAction(string title, Func<CancellationToken, Task<Document>> createChangedDocument) :
-                base(title, createChangedDocument)
+            public MyCodeAction(string title, Func<CancellationToken, Task<Document>> createChangedDocument)
+                : base(title, createChangedDocument)
             {
             }
         }

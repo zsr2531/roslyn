@@ -27,7 +27,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
             {
                 _visualStudioProject = visualStudioProject;
             }
-            
+
             public object this[CompilerOptions compilerOption]
             {
                 get
@@ -54,7 +54,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
                 // Get options from the ruleset file, if any, first. That way project-specific
                 // options can override them.
                 ReportDiagnostic? ruleSetGeneralDiagnosticOption = null;
-                
+
                 // TODO: merge this core logic back down to the base of OptionsProcessor, since this should be the same for all languages. The CompilationOptions
                 // would then already contain the right information, and could be updated accordingly by the language-specific logic.
                 if (ruleSetFileOpt != null)
@@ -202,7 +202,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
 
             private string GetStringOption(CompilerOptions optionID, string defaultValue)
             {
-                string value = (string)_options[(int)optionID];
+                var value = (string)_options[(int)optionID];
 
                 if (string.IsNullOrEmpty(value))
                 {
@@ -220,7 +220,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
 
                 // The base implementation of OptionsProcessor already tried this, but it didn't have the real documentation
                 // path so we have to do it a second time
-                DocumentationMode documentationMode = DocumentationMode.Parse;
+                var documentationMode = DocumentationMode.Parse;
                 if (GetStringOption(CompilerOptions.OPTID_XML_DOCFILE, defaultValue: null) != null)
                 {
                     documentationMode = DocumentationMode.Diagnose;
@@ -236,37 +236,16 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.ProjectSystemShim
 
             public void SetOutputFileType(OutputFileType fileType)
             {
-                OutputKind newOutputKind;
-                switch (fileType)
+                var newOutputKind = fileType switch
                 {
-                    case OutputFileType.Console:
-                        newOutputKind = OutputKind.ConsoleApplication;
-                        break;
-
-                    case OutputFileType.Windows:
-                        newOutputKind = OutputKind.WindowsApplication;
-                        break;
-
-                    case OutputFileType.Library:
-                        newOutputKind = OutputKind.DynamicallyLinkedLibrary;
-                        break;
-
-                    case OutputFileType.Module:
-                        newOutputKind = OutputKind.NetModule;
-                        break;
-
-                    case OutputFileType.AppContainer:
-                        newOutputKind = OutputKind.WindowsRuntimeApplication;
-                        break;
-
-                    case OutputFileType.WinMDObj:
-                        newOutputKind = OutputKind.WindowsRuntimeMetadata;
-                        break;
-
-                    default:
-
-                        throw new ArgumentException("fileType was not a valid OutputFileType", nameof(fileType));
-                }
+                    OutputFileType.Console => OutputKind.ConsoleApplication,
+                    OutputFileType.Windows => OutputKind.WindowsApplication,
+                    OutputFileType.Library => OutputKind.DynamicallyLinkedLibrary,
+                    OutputFileType.Module => OutputKind.NetModule,
+                    OutputFileType.AppContainer => OutputKind.WindowsRuntimeApplication,
+                    OutputFileType.WinMDObj => OutputKind.WindowsRuntimeMetadata,
+                    _ => throw new ArgumentException("fileType was not a valid OutputFileType", nameof(fileType)),
+                };
 
                 if (_outputKind != newOutputKind)
                 {

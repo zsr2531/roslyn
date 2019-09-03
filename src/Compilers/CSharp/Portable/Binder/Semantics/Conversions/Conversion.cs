@@ -172,28 +172,29 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             switch (kind)
             {
-                case ConversionKind.NoConversion: 
-                case ConversionKind.Identity: 
-                case ConversionKind.ImplicitConstant: 
-                case ConversionKind.ImplicitNumeric: 
-                case ConversionKind.ImplicitReference: 
+                case ConversionKind.NoConversion:
+                case ConversionKind.Identity:
+                case ConversionKind.ImplicitConstant:
+                case ConversionKind.ImplicitNumeric:
+                case ConversionKind.ImplicitReference:
                 case ConversionKind.ImplicitEnumeration:
                 case ConversionKind.ImplicitThrow:
-                case ConversionKind.AnonymousFunction: 
-                case ConversionKind.Boxing: 
-                case ConversionKind.DefaultOrNullLiteral: 
-                case ConversionKind.NullToPointer: 
-                case ConversionKind.PointerToVoid: 
-                case ConversionKind.PointerToPointer: 
-                case ConversionKind.PointerToInteger: 
-                case ConversionKind.IntegerToPointer: 
-                case ConversionKind.Unboxing: 
-                case ConversionKind.ExplicitReference: 
-                case ConversionKind.IntPtr: 
-                case ConversionKind.ExplicitEnumeration: 
-                case ConversionKind.ExplicitNumeric: 
-                case ConversionKind.ImplicitDynamic: 
-                case ConversionKind.ExplicitDynamic: 
+                case ConversionKind.AnonymousFunction:
+                case ConversionKind.Boxing:
+                case ConversionKind.NullLiteral:
+                case ConversionKind.DefaultLiteral:
+                case ConversionKind.NullToPointer:
+                case ConversionKind.PointerToVoid:
+                case ConversionKind.PointerToPointer:
+                case ConversionKind.PointerToInteger:
+                case ConversionKind.IntegerToPointer:
+                case ConversionKind.Unboxing:
+                case ConversionKind.ExplicitReference:
+                case ConversionKind.IntPtr:
+                case ConversionKind.ExplicitEnumeration:
+                case ConversionKind.ExplicitNumeric:
+                case ConversionKind.ImplicitDynamic:
+                case ConversionKind.ExplicitDynamic:
                 case ConversionKind.InterpolatedString:
                     isTrivial = true;
                     break;
@@ -212,6 +213,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             return new Conversion(kind);
         }
 
+        internal static Conversion UnsetConversion => new Conversion(ConversionKind.UnsetConversionKind);
         internal static Conversion NoConversion => new Conversion(ConversionKind.NoConversion);
         internal static Conversion Identity => new Conversion(ConversionKind.Identity);
         internal static Conversion ImplicitConstant => new Conversion(ConversionKind.ImplicitConstant);
@@ -221,7 +223,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         internal static Conversion ImplicitThrow => new Conversion(ConversionKind.ImplicitThrow);
         internal static Conversion AnonymousFunction => new Conversion(ConversionKind.AnonymousFunction);
         internal static Conversion Boxing => new Conversion(ConversionKind.Boxing);
-        internal static Conversion DefaultOrNullLiteral => new Conversion(ConversionKind.DefaultOrNullLiteral);
+        internal static Conversion NullLiteral => new Conversion(ConversionKind.NullLiteral);
+        internal static Conversion DefaultLiteral => new Conversion(ConversionKind.DefaultLiteral);
         internal static Conversion NullToPointer => new Conversion(ConversionKind.NullToPointer);
         internal static Conversion PointerToVoid => new Conversion(ConversionKind.PointerToVoid);
         internal static Conversion PointerToPointer => new Conversion(ConversionKind.PointerToPointer);
@@ -235,6 +238,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         internal static Conversion ImplicitDynamic => new Conversion(ConversionKind.ImplicitDynamic);
         internal static Conversion ExplicitDynamic => new Conversion(ConversionKind.ExplicitDynamic);
         internal static Conversion InterpolatedString => new Conversion(ConversionKind.InterpolatedString);
+        internal static Conversion SwitchExpression => new Conversion(ConversionKind.SwitchExpression);
         internal static Conversion Deconstruction => new Conversion(ConversionKind.Deconstruction);
         internal static Conversion PinnedObjectToPointer => new Conversion(ConversionKind.PinnedObjectToPointer);
 
@@ -513,6 +517,17 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
+        /// <summary>
+        /// Returns true if the conversion is an implicit switch expression conversion.
+        /// </summary>
+        public bool IsSwitchExpression
+        {
+            get
+            {
+                return Kind == ConversionKind.SwitchExpression;
+            }
+        }
+
         // TODO: update the language reference section number below.
         /// <summary>
         /// Returns true if the conversion is an interpolated string conversion.
@@ -621,16 +636,27 @@ namespace Microsoft.CodeAnalysis.CSharp
         }
 
         /// <summary>
-        /// Returns true if the conversion is an implicit null or default literal conversion.
+        /// Returns true if the conversion is an implicit null literal conversion.
         /// </summary>
         /// <remarks>
-        /// Null or default literal conversions are described in section 6.1.5 of the C# language specification.
+        /// Null literal conversions are described in section 6.1.5 of the C# language specification.
         /// </remarks>
         public bool IsNullLiteral
         {
             get
             {
-                return Kind == ConversionKind.DefaultOrNullLiteral;
+                return Kind == ConversionKind.NullLiteral;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the conversion is an implicit default literal conversion.
+        /// </summary>
+        public bool IsDefaultLiteral
+        {
+            get
+            {
+                return Kind == ConversionKind.DefaultLiteral;
             }
         }
 
@@ -961,7 +987,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 if (!self.DeconstructionInfo.IsDefault)
                 {
                     sub.Add(new TreeDumperNode("deconstructionInfo", null,
-                        new[] { BoundTreeDumperNodeProducer.MakeTree(self.DeconstructionInfo.Invocation)}));
+                        new[] { BoundTreeDumperNodeProducer.MakeTree(self.DeconstructionInfo.Invocation) }));
                 }
 
                 var underlyingConversions = self.UnderlyingConversions;
@@ -983,7 +1009,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         internal DeconstructMethodInfo(BoundExpression invocation, BoundDeconstructValuePlaceholder inputPlaceholder,
             ImmutableArray<BoundDeconstructValuePlaceholder> outputPlaceholders)
         {
-             (Invocation, InputPlaceholder, OutputPlaceholders) = (invocation, inputPlaceholder, outputPlaceholders);
+            (Invocation, InputPlaceholder, OutputPlaceholders) = (invocation, inputPlaceholder, outputPlaceholders);
         }
 
         readonly internal BoundExpression Invocation;

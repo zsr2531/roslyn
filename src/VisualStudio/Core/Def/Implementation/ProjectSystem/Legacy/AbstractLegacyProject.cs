@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Host;
@@ -31,9 +30,18 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
         protected IProjectCodeModel ProjectCodeModel { get; set; }
         protected VisualStudioWorkspace Workspace { get; }
 
-        #region Mutable fields that should only be used from the UI thread
+        internal VisualStudioProject Test_VisualStudioProject => VisualStudioProject;
 
-        private readonly VsENCRebuildableProjectImpl _editAndContinueProject;
+        /// <summary>
+        /// The path to the directory of the project. Read-only, since although you can rename
+        /// a project in Visual Studio you can't change the folder of a project without an
+        /// unload/reload.
+        /// </summary>
+        private readonly string _projectDirectory = null;
+
+        private static readonly char[] PathSeparatorCharacters = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+
+        #region Mutable fields that should only be used from the UI thread
 
         private readonly SolutionEventsBatchScopeCreator _batchScopeCreator;
 
@@ -55,13 +63,18 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
             var componentModel = (IComponentModel)serviceProvider.GetService(typeof(SComponentModel));
             Workspace = componentModel.GetService<VisualStudioWorkspace>();
 
-            var projectFilePath = hierarchy.GetProjectFilePath();
+            var projectFilePath = hierarchy.TryGetProjectFilePath();
 
             if (projectFilePath != null && !File.Exists(projectFilePath))
             {
                 projectFilePath = null;
             }
-     
+
+            if (projectFilePath != null)
+            {
+                _projectDirectory = Path.GetDirectoryName(projectFilePath);
+            }
+
             var projectFactory = componentModel.GetService<VisualStudioProjectFactory>();
             VisualStudioProject = projectFactory.CreateAndAddToWorkspace(
                 projectSystemName,
@@ -76,15 +89,28 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
                     ProjectGuid = GetProjectIDGuid(hierarchy),
                 });
 
+            ((VisualStudioWorkspaceImpl)Workspace).AddProjectRuleSetFileToInternalMaps(
+                VisualStudioProject,
+                () => VisualStudioProjectOptionsProcessor.EffectiveRuleSetFilePath);
+
+            // Right now VB doesn't have the concept of "default namespace". But we conjure one in workspace 
+            // by assigning the value of the project's root namespace to it. So various feature can choose to 
+            // use it for their own purpose.
+            // In the future, we might consider officially exposing "default namespace" for VB project 
+            // (e.g. through a <defaultnamespace> msbuild property)
+            VisualStudioProject.DefaultNamespace = GetRootNamespacePropertyValue(hierarchy);
+
             Hierarchy = hierarchy;
             ConnectHierarchyEvents();
             RefreshBinOutputPath();
 
-            // TODO: remove this terrible hack, which is working around shims throwing in not-good ways
+            // TODO: https://github.com/dotnet/roslyn/issues/36065
+            // The ctor of ExternalErrorDiagnosticUpdateSource throws when running in tests since UIContextImpl calls:
+            //   (IVsMonitorSelection)ServiceProvider.GlobalProvider.GetService(typeof(IVsMonitorSelection))),
+            // which returns null.
             try
             {
-                _externalErrorReporter = new ProjectExternalErrorReporter(VisualStudioProject.Id, externalErrorReportingPrefix, serviceProvider);
-                _editAndContinueProject = new VsENCRebuildableProjectImpl(Workspace, VisualStudioProject, serviceProvider);
+                _externalErrorReporter = new ProjectExternalErrorReporter(VisualStudioProject.Id, externalErrorReportingPrefix, (VisualStudioWorkspaceImpl)Workspace);
             }
             catch (Exception)
             {
@@ -95,6 +121,9 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
         }
 
         public string AssemblyName => VisualStudioProject.AssemblyName;
+
+        public string GetOutputFileName()
+            => VisualStudioProject.IntermediateOutputFilePath;
 
         public virtual void Disconnect()
         {
@@ -133,10 +162,37 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
             VisualStudioProject.AddSourceFile(filename, sourceCodeKind, folders);
         }
 
+        protected void AddFile(
+            string filename,
+            string linkMetadata,
+            SourceCodeKind sourceCodeKind)
+        {
+            // We have tests that assert that XOML files should not get added; this was similar
+            // behavior to how ASP.NET projects would add .aspx files even though we ultimately ignored
+            // them. XOML support is planned to go away for Dev16, but for now leave the logic there.
+            if (filename.EndsWith(".xoml"))
+            {
+                return;
+            }
+
+            var folders = ImmutableArray<string>.Empty;
+            if (!string.IsNullOrEmpty(linkMetadata))
+            {
+                var linkFolderPath = Path.GetDirectoryName(linkMetadata);
+                folders = linkFolderPath.Split(PathSeparatorCharacters, StringSplitOptions.RemoveEmptyEntries).ToImmutableArray();
+            }
+            else if (!string.IsNullOrEmpty(VisualStudioProject.FilePath))
+            {
+                var relativePath = PathUtilities.GetRelativePath(_projectDirectory, filename);
+                var relativePathParts = relativePath.Split(PathSeparatorCharacters);
+                folders = ImmutableArray.Create(relativePathParts, start: 0, length: relativePathParts.Length - 1);
+            }
+
+            VisualStudioProject.AddSourceFile(filename, sourceCodeKind, folders);
+        }
+
         protected void RemoveFile(string filename)
         {
-            AssertIsForeground();
-
             // We have tests that assert that XOML files should not get added; this was similar
             // behavior to how ASP.NET projects would add .aspx files even though we ultimately ignored
             // them. XOML support is planned to go away for Dev16, but for now leave the logic there.
@@ -146,12 +202,12 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
             }
 
             VisualStudioProject.RemoveSourceFile(filename);
+            ProjectCodeModel.OnSourceFileRemoved(filename);
         }
 
-        private void RefreshBinOutputPath()
+        protected void RefreshBinOutputPath()
         {
-            var storage = Hierarchy as IVsBuildPropertyStorage;
-            if (storage == null)
+            if (!(Hierarchy is IVsBuildPropertyStorage storage))
             {
                 return;
             }
@@ -184,6 +240,15 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
             }
 
             VisualStudioProject.OutputFilePath = FileUtilities.NormalizeAbsolutePath(Path.Combine(outputDirectory, targetFileName));
+
+            if (ErrorHandler.Succeeded(storage.GetPropertyValue("TargetRefPath", null, (uint)_PersistStorageType.PST_PROJECT_FILE, out var targetRefPath)) && !string.IsNullOrEmpty(targetRefPath))
+            {
+                VisualStudioProject.OutputRefFilePath = targetRefPath;
+            }
+            else
+            {
+                VisualStudioProject.OutputRefFilePath = null;
+            }
         }
 
         private static Guid GetProjectIDGuid(IVsHierarchy hierarchy)
@@ -239,32 +304,30 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
         {
             AssertIsForeground();
 
-            using (var pooledObject = SharedPools.Default<List<string>>().GetPooledObject())
+            using var pooledObject = SharedPools.Default<List<string>>().GetPooledObject();
+
+            var newFolderNames = pooledObject.Object;
+
+            if (!_folderNameMap.TryGetValue(folderItemID, out var folderNames))
             {
-                var newFolderNames = pooledObject.Object;
-                ImmutableArray<string> folderNames;
-
-                if (!_folderNameMap.TryGetValue(folderItemID, out folderNames))
-                {
-                    ComputeFolderNames(folderItemID, newFolderNames, Hierarchy);
-                    folderNames = newFolderNames.ToImmutableArray();
-                    _folderNameMap.Add(folderItemID, folderNames);
-                }
-                else
-                {
-                    // verify names, and change map if we get a different set.
-                    // this is necessary because we only get document adds/removes from the project system
-                    // when a document name or folder name changes.
-                    ComputeFolderNames(folderItemID, newFolderNames, Hierarchy);
-                    if (!Enumerable.SequenceEqual(folderNames, newFolderNames))
-                    {
-                        folderNames = newFolderNames.ToImmutableArray();
-                        _folderNameMap[folderItemID] = folderNames;
-                    }
-                }
-
-                return folderNames;
+                ComputeFolderNames(folderItemID, newFolderNames, Hierarchy);
+                folderNames = newFolderNames.ToImmutableArray();
+                _folderNameMap.Add(folderItemID, folderNames);
             }
+            else
+            {
+                // verify names, and change map if we get a different set.
+                // this is necessary because we only get document adds/removes from the project system
+                // when a document name or folder name changes.
+                ComputeFolderNames(folderItemID, newFolderNames, Hierarchy);
+                if (!Enumerable.SequenceEqual(folderNames, newFolderNames))
+                {
+                    folderNames = newFolderNames.ToImmutableArray();
+                    _folderNameMap[folderItemID] = folderNames;
+                }
+            }
+
+            return folderNames;
         }
 
         // Different hierarchies are inconsistent on whether they return ints or uints for VSItemIds.
@@ -301,6 +364,40 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem.L
                     ComputeFolderNames(parentID, names, hierarchy);
                 }
             }
+        }
+
+        /// <summary>
+        /// Get the value of "rootnamespace" property of the project ("" if not defined, which means global namespace),
+        /// or null if it is unknown or not applicable. 
+        /// </summary>
+        /// <remarks>
+        /// This property has different meaning between C# and VB, each project type can decide how to interpret the value.
+        /// </remarks>>
+        private static string GetRootNamespacePropertyValue(IVsHierarchy hierarchy)
+        {
+            // While both csproj and vbproj might define <rootnamespace> property in the project file, 
+            // they are very different things.
+            // 
+            // In C#, it's called default namespace (even though we got the value from rootnamespace property),
+            // and it doesn't affect the semantic of the code in anyway, just something used by VS.
+            // For example, when you create a new class, the namespace for the new class is based on it. 
+            // Therefore, we can't get this info from compiler.
+            // 
+            // However, in VB, it's actually called root namespace, and that info is part of the VB compilation 
+            // (parsed from arguments), because VB compiler needs it to determine the root of all the namespace 
+            // declared in the compilation.
+            // 
+            // Unfortunately, although being different concepts, default namespace and root namespace are almost
+            // used interchangebly in VS. For example, (1) the value is define in "rootnamespace" property in project 
+            // files and, (2) the property name we use to call into hierarchy below to retrieve the value is 
+            // called "DefaultNamespace".
+
+            if (hierarchy.TryGetProperty(__VSHPROPID.VSHPROPID_DefaultNamespace, out string value))
+            {
+                return value;
+            }
+
+            return null;
         }
     }
 }

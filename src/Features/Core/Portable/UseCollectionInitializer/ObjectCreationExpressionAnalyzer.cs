@@ -19,7 +19,7 @@ namespace Microsoft.CodeAnalysis.UseCollectionInitializer
             TExpressionSyntax,
             TStatementSyntax,
             TObjectCreationExpressionSyntax,
-            TVariableDeclaratorSyntax, 
+            TVariableDeclaratorSyntax,
             TExpressionStatementSyntax>
         where TExpressionSyntax : SyntaxNode
         where TStatementSyntax : SyntaxNode
@@ -81,8 +81,7 @@ namespace Microsoft.CodeAnalysis.UseCollectionInitializer
                     return;
                 }
 
-                var statement = child.AsNode() as TExpressionStatementSyntax;
-                if (statement == null)
+                if (!(child.AsNode() is TExpressionStatementSyntax statement))
                 {
                     return;
                 }
@@ -127,9 +126,9 @@ namespace Microsoft.CodeAnalysis.UseCollectionInitializer
             }
 
             var addMethods = _semanticModel.LookupSymbols(
-                _objectCreationExpression.SpanStart, 
-                container: type, 
-                name: WellKnownMemberNames.CollectionInitializerAddMethodName, 
+                _objectCreationExpression.SpanStart,
+                container: type,
+                name: WellKnownMemberNames.CollectionInitializerAddMethodName,
                 includeReducedExtensionMethods: true);
 
             return addMethods.Any(m => m is IMethodSymbol methodSymbol && methodSymbol.Parameters.Any());
@@ -175,8 +174,7 @@ namespace Microsoft.CodeAnalysis.UseCollectionInitializer
             out SyntaxNode instance)
         {
             instance = null;
-            var invocationExpression = _syntaxFacts.GetExpressionOfExpressionStatement(statement) as TInvocationExpressionSyntax;
-            if (invocationExpression == null)
+            if (!(_syntaxFacts.GetExpressionOfExpressionStatement(statement) is TInvocationExpressionSyntax invocationExpression))
             {
                 return false;
             }
@@ -201,8 +199,7 @@ namespace Microsoft.CodeAnalysis.UseCollectionInitializer
                 }
             }
 
-            var memberAccess = _syntaxFacts.GetExpressionOfInvocationExpression(invocationExpression) as TMemberAccessExpressionSyntax;
-            if (memberAccess == null)
+            if (!(_syntaxFacts.GetExpressionOfInvocationExpression(invocationExpression) is TMemberAccessExpressionSyntax memberAccess))
             {
                 return false;
             }

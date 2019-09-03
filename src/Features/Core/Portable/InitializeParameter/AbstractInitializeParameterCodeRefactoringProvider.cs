@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeActions;
@@ -11,6 +10,7 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.LanguageServices;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 
 namespace Microsoft.CodeAnalysis.InitializeParameter
@@ -24,54 +24,67 @@ namespace Microsoft.CodeAnalysis.InitializeParameter
         where TExpressionSyntax : SyntaxNode
     {
         protected abstract bool IsFunctionDeclaration(SyntaxNode node);
-
-        protected abstract IBlockOperation GetBlockOperation(SyntaxNode functionDeclaration, SemanticModel semanticModel, CancellationToken cancellationToken);
         protected abstract bool IsImplicitConversion(Compilation compilation, ITypeSymbol source, ITypeSymbol destination);
+
+        protected abstract SyntaxNode GetBody(SyntaxNode functionDeclaration);
         protected abstract SyntaxNode GetTypeBlock(SyntaxNode node);
+
+        protected abstract Task<ImmutableArray<CodeAction>> GetRefactoringsForAllParametersAsync(
+            Document document,
+            SyntaxNode functionDeclaration,
+            IMethodSymbol method,
+            IBlockOperation blockStatementOpt,
+            ImmutableArray<SyntaxNode> listOfParameterNodes,
+            int position,
+            CancellationToken cancellationToken);
+
+        protected abstract Task<ImmutableArray<CodeAction>> GetRefactoringsForSingleParameterAsync(
+            Document document,
+            IParameterSymbol parameter,
+            SyntaxNode functionDeclaration,
+            IMethodSymbol methodSymbol,
+            IBlockOperation blockStatementOpt,
+            CancellationToken cancellationToken);
 
         protected abstract void InsertStatement(
             SyntaxEditor editor, SyntaxNode functionDeclaration, IMethodSymbol method,
             SyntaxNode statementToAddAfterOpt, TStatementSyntax statement);
 
-        protected abstract Task<ImmutableArray<CodeAction>> GetRefactoringsAsync(
-            Document document, IParameterSymbol parameter, SyntaxNode functionDeclaration, IMethodSymbol method,
-            IBlockOperation blockStatementOpt, CancellationToken cancellationToken);
-
         public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
         {
+            var (document, textSpan, cancellationToken) = context;
             var position = context.Span.Start;
-            var document = context.Document;
-            var cancellationToken = context.CancellationToken;
-
             var syntaxTree = await document.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-
             var token = root.FindToken(position);
-            var parameterNode = GetParameterNode(token, position);
-            if (parameterNode == null)
+            var selectedParameter = await context.TryGetRelevantNodeAsync<TParameterSyntax>().ConfigureAwait(false);
+            if (selectedParameter == null)
             {
                 return;
             }
 
-            // Only offered when there isn't a selection, or the selection exactly selects
-            // a parameter name.
+            var functionDeclaration = selectedParameter.FirstAncestorOrSelf<SyntaxNode>(IsFunctionDeclaration);
+            if (functionDeclaration is null)
+            {
+                return;
+            }
+
+            var generator = SyntaxGenerator.GetGenerator(document);
+            var parameterNodes = generator.GetParameters(functionDeclaration);
+            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
             var syntaxFacts = document.GetLanguageService<ISyntaxFactsService>();
+
+            // Only offered when there isn't a selection, or the selection exactly selects a parameter name.
             if (!context.Span.IsEmpty)
             {
-                var parameterName = syntaxFacts.GetNameOfParameter(parameterNode);
+                var parameterName = syntaxFacts.GetNameOfParameter(selectedParameter);
                 if (parameterName == null || parameterName.Value.Span != context.Span)
                 {
                     return;
                 }
             }
 
-            var functionDeclaration = parameterNode.FirstAncestorOrSelf<SyntaxNode>(IsFunctionDeclaration);
-            if (functionDeclaration == null)
-            {
-                return;
-            }
-
-            var parameterDefault = syntaxFacts.GetDefaultOfParameter(parameterNode);
+            var parameterDefault = syntaxFacts.GetDefaultOfParameter(selectedParameter);
 
             // Don't offer inside the "=initializer" of a parameter
             if (parameterDefault?.Span.Contains(position) == true)
@@ -79,37 +92,103 @@ namespace Microsoft.CodeAnalysis.InitializeParameter
                 return;
             }
 
-            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-
             // we can't just call GetDeclaredSymbol on functionDeclaration because it could an anonymous function,
             // so first we have to get the parameter symbol and then its containing method symbol
-            var parameter = (IParameterSymbol)semanticModel.GetDeclaredSymbol(parameterNode, cancellationToken);
-            if (parameter == null || parameter.Name == "")
+            if (!TryGetParameterSymbol(selectedParameter, semanticModel, out var parameter, cancellationToken))
             {
                 return;
             }
 
-            var method = (IMethodSymbol)parameter.ContainingSymbol;
-            if (method.IsAbstract ||
-                method.IsExtern ||
-                method.PartialImplementationPart != null ||
-                method.ContainingType.TypeKind == TypeKind.Interface)
+            var methodSymbol = (IMethodSymbol)parameter.ContainingSymbol;
+            if (methodSymbol.IsAbstract ||
+                methodSymbol.IsExtern ||
+                methodSymbol.PartialImplementationPart != null ||
+                methodSymbol.ContainingType.TypeKind == TypeKind.Interface)
             {
                 return;
             }
 
-            // We support initializing parameters, even when the containing member doesn't have a
-            // body. This is useful for when the user is typing a new constructor and hasn't written
-            // the body yet.
-            var blockStatementOpt = GetBlockOperation(functionDeclaration, semanticModel, cancellationToken);
-          
-            // Ok.  Looks like a reasonable parameter to analyze.  Defer to subclass to 
-            // actually determine if there are any viable refactorings here.
-            context.RegisterRefactorings(await GetRefactoringsAsync(
-                document, parameter, functionDeclaration, method, blockStatementOpt, cancellationToken).ConfigureAwait(false));
+            if (CanOfferRefactoring(functionDeclaration, semanticModel, syntaxFacts, cancellationToken, out var blockStatementOpt))
+            {
+                // Ok.  Looks like the selected parameter could be refactored. Defer to subclass to 
+                // actually determine if there are any viable refactorings here.
+                context.RegisterRefactorings(await GetRefactoringsForSingleParameterAsync(
+                    document, parameter, functionDeclaration, methodSymbol, blockStatementOpt, cancellationToken).ConfigureAwait(false));
+            }
+
+            // List with parameterNodes that pass all checks
+            var listOfPotentiallyValidParametersNodes = ArrayBuilder<SyntaxNode>.GetInstance();
+            foreach (var parameterNode in parameterNodes)
+            {
+                if (!TryGetParameterSymbol(parameterNode, semanticModel, out parameter, cancellationToken))
+                {
+                    return;
+                }
+
+                // Update the list of valid parameter nodes
+                listOfPotentiallyValidParametersNodes.Add(parameterNode);
+            }
+
+            if (listOfPotentiallyValidParametersNodes.Count > 1)
+            {
+                // Looks like we can offer a refactoring for more than one parameter. Defer to subclass to 
+                // actually determine if there are any viable refactorings here.
+                context.RegisterRefactorings(await GetRefactoringsForAllParametersAsync(
+                    document, functionDeclaration, methodSymbol, blockStatementOpt, listOfPotentiallyValidParametersNodes.ToImmutableAndFree(), position, cancellationToken).ConfigureAwait(false));
+            }
+
+            static bool TryGetParameterSymbol(
+                SyntaxNode parameterNode,
+                SemanticModel semanticModel,
+                out IParameterSymbol parameter,
+                CancellationToken cancellationToken)
+            {
+                parameter = (IParameterSymbol)semanticModel.GetDeclaredSymbol(parameterNode, cancellationToken);
+                return parameter.Name != "";
+            }
         }
 
-        private TParameterSyntax GetParameterNode(SyntaxToken token, int position)
+        protected bool CanOfferRefactoring(SyntaxNode functionDeclaration, SemanticModel semanticModel, ISyntaxFactsService syntaxFacts, CancellationToken cancellationToken, out IBlockOperation blockStatementOpt)
+        {
+            blockStatementOpt = null;
+
+            var functionBody = GetBody(functionDeclaration);
+            if (functionBody == null)
+            {
+                // We support initializing parameters, even when the containing member doesn't have a
+                // body. This is useful for when the user is typing a new constructor and hasn't written
+                // the body yet.
+                return true;
+            }
+
+            // In order to get the block operation for the body of an anonymous function, we need to
+            // get it via `IAnonymousFunctionOperation.Body` instead of getting it directly from the body syntax.
+
+            var operation = semanticModel.GetOperation(
+                syntaxFacts.IsAnonymousFunction(functionDeclaration) ? functionDeclaration : functionBody,
+                cancellationToken);
+
+            if (operation == null)
+            {
+                return false;
+            }
+
+            switch (operation.Kind)
+            {
+                case OperationKind.AnonymousFunction:
+                    blockStatementOpt = ((IAnonymousFunctionOperation)operation).Body;
+                    break;
+                case OperationKind.Block:
+                    blockStatementOpt = (IBlockOperation)operation;
+                    break;
+                default:
+                    return false;
+            }
+
+            return true;
+        }
+
+        protected TParameterSyntax GetParameterNode(SyntaxToken token, int position)
         {
             var parameterNode = token.Parent?.FirstAncestorOrSelf<TParameterSyntax>();
             if (parameterNode != null)
@@ -128,8 +207,8 @@ namespace Microsoft.CodeAnalysis.InitializeParameter
         }
 
         protected static bool IsParameterReference(IOperation operation, IParameterSymbol parameter)
-            => UnwrapImplicitConversion(operation) is IParameterReferenceOperation parameterReference &&
-               parameter.Equals(parameterReference.Parameter);
+        => UnwrapImplicitConversion(operation) is IParameterReferenceOperation parameterReference &&
+           parameter.Equals(parameterReference.Parameter);
 
         protected static IOperation UnwrapImplicitConversion(IOperation operation)
             => operation is IConversionOperation conversion && conversion.IsImplicit
@@ -158,7 +237,7 @@ namespace Microsoft.CodeAnalysis.InitializeParameter
             => IsFieldOrPropertyAssignment(statement, containingType, out assignmentExpression, out var fieldOrProperty);
 
         protected static bool IsFieldOrPropertyAssignment(
-            IOperation statement, INamedTypeSymbol containingType, 
+            IOperation statement, INamedTypeSymbol containingType,
             out IAssignmentOperation assignmentExpression, out ISymbol fieldOrProperty)
         {
             if (statement is IExpressionStatementOperation expressionStatement)

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
+using Microsoft.CodeAnalysis.Editor.Undo;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.FindUsages;
 using Microsoft.CodeAnalysis.LanguageServices;
@@ -14,7 +15,7 @@ using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.FindUsages
 {
-    internal abstract partial class AbstractFindUsagesService : IFindUsagesService
+    internal abstract partial class AbstractFindUsagesService : IFindUsagesService, IFindUsagesService2
     {
         private readonly IThreadingContext _threadingContext;
 
@@ -23,8 +24,14 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
             _threadingContext = threadingContext;
         }
 
-        public async Task FindImplementationsAsync(
+        public Task FindImplementationsAsync(
             Document document, int position, IFindUsagesContext context)
+        {
+            return FindImplementationsAsync(document, position, default, context);
+        }
+
+        public async Task FindImplementationsAsync(
+            Document document, int position, IImmutableSet<Document> documents, IFindUsagesContext context)
         {
             var cancellationToken = context.CancellationToken;
             var tuple = await FindUsagesHelpers.FindImplementationsAsync(
@@ -58,8 +65,14 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
             }
         }
 
-        public async Task FindReferencesAsync(
+        public Task FindReferencesAsync(
             Document document, int position, IFindUsagesContext context)
+        {
+            return FindReferencesAsync(document, position, default, context);
+        }
+
+        public async Task FindReferencesAsync(
+            Document document, int position, IImmutableSet<Document> documents, IFindUsagesContext context)
         {
             var definitionTrackingContext = new DefinitionTrackingContext(context);
 
@@ -69,7 +82,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
             //
             // Any async calls before GetThirdPartyDefinitions must be ConfigureAwait(true).
             await FindLiteralOrSymbolReferencesAsync(
-                document, position, definitionTrackingContext).ConfigureAwait(true);
+                document, position, documents, definitionTrackingContext).ConfigureAwait(true);
 
             // After the FAR engine is done call into any third party extensions to see
             // if they want to add results.
@@ -87,7 +100,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
         }
 
         private async Task FindLiteralOrSymbolReferencesAsync(
-            Document document, int position, IFindUsagesContext context)
+            Document document, int position, IImmutableSet<Document> documents, IFindUsagesContext context)
         {
             // First, see if we're on a literal.  If so search for literals in the solution with
             // the same value.
@@ -100,7 +113,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
 
             // Wasn't a literal.  Try again as a symbol.
             await FindSymbolReferencesAsync(
-                document, position, context).ConfigureAwait(false);
+                document, position, documents, context).ConfigureAwait(false);
         }
 
         private ImmutableArray<DefinitionItem> GetThirdPartyDefinitions(
@@ -115,7 +128,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
         }
 
         private async Task FindSymbolReferencesAsync(
-            Document document, int position, IFindUsagesContext context)
+            Document document, int position, IImmutableSet<Document> documents, IFindUsagesContext context)
         {
             var cancellationToken = context.CancellationToken;
             cancellationToken.ThrowIfCancellationRequested();
@@ -130,7 +143,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
 
             await FindSymbolReferencesAsync(
                 _threadingContext,
-                context, symbolAndProject?.symbol, symbolAndProject?.project, cancellationToken).ConfigureAwait(false);
+                context, symbolAndProject?.symbol, symbolAndProject?.project, documents, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -139,7 +152,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
         /// </summary>
         public static async Task FindSymbolReferencesAsync(
             IThreadingContext threadingContext,
-            IFindUsagesContext context, ISymbol symbol, Project project, CancellationToken cancellationToken)
+            IFindUsagesContext context, ISymbol symbol, Project project, IImmutableSet<Document> documents, CancellationToken cancellationToken)
         {
             await context.SetSearchTitleAsync(string.Format(EditorFeaturesResources._0_references,
                 FindUsagesHelpers.GetDisplayName(symbol))).ConfigureAwait(false);
@@ -155,7 +168,7 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
                 SymbolAndProjectId.Create(symbol, project.Id),
                 project.Solution,
                 progressAdapter,
-                documents: null,
+                documents: documents,
                 options: options,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
         }

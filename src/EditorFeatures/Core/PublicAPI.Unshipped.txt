@@ -1,6 +1,9 @@
 Microsoft.CodeAnalysis.Editor.FindUsages.IFindUsagesService
 Microsoft.CodeAnalysis.Editor.FindUsages.IFindUsagesService.FindImplementationsAsync(Microsoft.CodeAnalysis.Document document, int position, Microsoft.CodeAnalysis.FindUsages.IFindUsagesContext context) -> System.Threading.Tasks.Task
 Microsoft.CodeAnalysis.Editor.FindUsages.IFindUsagesService.FindReferencesAsync(Microsoft.CodeAnalysis.Document document, int position, Microsoft.CodeAnalysis.FindUsages.IFindUsagesContext context) -> System.Threading.Tasks.Task
+Microsoft.CodeAnalysis.Editor.FindUsages.IFindUsagesService2
+Microsoft.CodeAnalysis.Editor.FindUsages.IFindUsagesService2.FindImplementationsAsync(Microsoft.CodeAnalysis.Document document, int position, System.Collections.Immutable.IImmutableSet<Microsoft.CodeAnalysis.Document> documents, Microsoft.CodeAnalysis.FindUsages.IFindUsagesContext context) -> System.Threading.Tasks.Task
+Microsoft.CodeAnalysis.Editor.FindUsages.IFindUsagesService2.FindReferencesAsync(Microsoft.CodeAnalysis.Document document, int position, System.Collections.Immutable.IImmutableSet<Microsoft.CodeAnalysis.Document> documents, Microsoft.CodeAnalysis.FindUsages.IFindUsagesContext context) -> System.Threading.Tasks.Task
 Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext
 Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext.GetDefinitions() -> System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.FindUsages.DefinitionItem>
 Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext.GetReferences() -> System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.FindUsages.SourceReferenceItem>

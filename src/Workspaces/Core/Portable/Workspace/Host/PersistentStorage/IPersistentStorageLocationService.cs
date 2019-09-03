@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Host.Mef;
 
 namespace Microsoft.CodeAnalysis.Host
 {
-    interface IPersistentStorageLocationService : IWorkspaceService
+    public interface IPersistentStorageLocationService : IWorkspaceService
     {
         bool IsSupported(Workspace workspace);
         string TryGetStorageLocation(SolutionId solutionId);
@@ -17,7 +17,7 @@ namespace Microsoft.CodeAnalysis.Host
         event EventHandler<PersistentStorageLocationChangingEventArgs> StorageLocationChanging;
     }
 
-    internal sealed class PersistentStorageLocationChangingEventArgs : EventArgs
+    public sealed class PersistentStorageLocationChangingEventArgs : EventArgs
     {
         public PersistentStorageLocationChangingEventArgs(SolutionId solutionId, string newStorageLocation, bool mustUseNewStorageLocationImmediately)
         {

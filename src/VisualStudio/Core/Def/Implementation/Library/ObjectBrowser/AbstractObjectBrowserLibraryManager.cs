@@ -566,7 +566,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.Library.ObjectB
             {
                 await AbstractFindUsagesService.FindSymbolReferencesAsync(
                     threadingContext,
-                    context, symbol, project, cancellationToken).ConfigureAwait(false);
+                    context, symbol, project, documents: null, cancellationToken).ConfigureAwait(false);
             }
         }
     }

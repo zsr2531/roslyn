@@ -4,6 +4,15 @@ Microsoft.CodeAnalysis.AnalyzerConfigDocument
 Microsoft.CodeAnalysis.ApplyChangesKind.AddAnalyzerConfigDocument = 17 -> Microsoft.CodeAnalysis.ApplyChangesKind
 Microsoft.CodeAnalysis.ApplyChangesKind.ChangeAnalyzerConfigDocument = 19 -> Microsoft.CodeAnalysis.ApplyChangesKind
 Microsoft.CodeAnalysis.ApplyChangesKind.RemoveAnalyzerConfigDocument = 18 -> Microsoft.CodeAnalysis.ApplyChangesKind
+Microsoft.CodeAnalysis.Host.IPersistentStorageLocationService
+Microsoft.CodeAnalysis.Host.IPersistentStorageLocationService.IsSupported(Microsoft.CodeAnalysis.Workspace workspace) -> bool
+Microsoft.CodeAnalysis.Host.IPersistentStorageLocationService.StorageLocationChanging -> System.EventHandler<Microsoft.CodeAnalysis.Host.PersistentStorageLocationChangingEventArgs>
+Microsoft.CodeAnalysis.Host.IPersistentStorageLocationService.TryGetStorageLocation(Microsoft.CodeAnalysis.SolutionId solutionId) -> string
+Microsoft.CodeAnalysis.Host.PersistentStorageLocationChangingEventArgs
+Microsoft.CodeAnalysis.Host.PersistentStorageLocationChangingEventArgs.MustUseNewStorageLocationImmediately.get -> bool
+Microsoft.CodeAnalysis.Host.PersistentStorageLocationChangingEventArgs.NewStorageLocation.get -> string
+Microsoft.CodeAnalysis.Host.PersistentStorageLocationChangingEventArgs.PersistentStorageLocationChangingEventArgs(Microsoft.CodeAnalysis.SolutionId solutionId, string newStorageLocation, bool mustUseNewStorageLocationImmediately) -> void
+Microsoft.CodeAnalysis.Host.PersistentStorageLocationChangingEventArgs.SolutionId.get -> Microsoft.CodeAnalysis.SolutionId
 Microsoft.CodeAnalysis.Project.AddAnalyzerConfigDocument(string name, Microsoft.CodeAnalysis.Text.SourceText text, System.Collections.Generic.IEnumerable<string> folders = null, string filePath = null) -> Microsoft.CodeAnalysis.TextDocument
 Microsoft.CodeAnalysis.Project.AnalyzerConfigDocuments.get -> System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.AnalyzerConfigDocument>
 Microsoft.CodeAnalysis.Project.ContainsAnalyzerConfigDocument(Microsoft.CodeAnalysis.DocumentId documentId) -> bool

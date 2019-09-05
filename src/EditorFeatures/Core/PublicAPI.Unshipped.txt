@@ -10,6 +10,9 @@ Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext.GetReferences()
 Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext.Message.get -> string
 Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext.SearchTitle.get -> string
 Microsoft.CodeAnalysis.Editor.FindUsages.SimpleFindUsagesContext.SimpleFindUsagesContext(System.Threading.CancellationToken cancellationToken) -> void
+Microsoft.CodeAnalysis.Editor.Host.IStreamingFindUsagesPresenter
+Microsoft.CodeAnalysis.Editor.Host.IStreamingFindUsagesPresenter.ClearAll() -> void
+Microsoft.CodeAnalysis.Editor.Host.IStreamingFindUsagesPresenter.StartSearch(string title, bool supportsReferences) -> Microsoft.CodeAnalysis.FindUsages.FindUsagesContext
 Microsoft.CodeAnalysis.Editor.IGoToDefinitionService
 Microsoft.CodeAnalysis.Editor.IGoToDefinitionService.FindDefinitionsAsync(Microsoft.CodeAnalysis.Document document, int position, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.Navigation.INavigableItem>>
 Microsoft.CodeAnalysis.Editor.IGoToDefinitionService.TryGoToDefinition(Microsoft.CodeAnalysis.Document document, int position, System.Threading.CancellationToken cancellationToken) -> bool

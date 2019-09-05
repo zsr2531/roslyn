@@ -12,7 +12,7 @@ namespace Microsoft.CodeAnalysis.Editor.Host
     /// i.e. if they support showing results as they are found instead of after all of the results
     /// are found.
     /// </summary>
-    internal interface IStreamingFindUsagesPresenter
+    public interface IStreamingFindUsagesPresenter
     {
         /// <summary>
         /// Tells the presenter that a search is starting.  The returned <see cref="FindUsagesContext"/>

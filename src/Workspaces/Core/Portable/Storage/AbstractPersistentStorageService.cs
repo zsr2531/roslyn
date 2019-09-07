@@ -130,22 +130,23 @@ namespace Microsoft.CodeAnalysis.Storage
 
         private bool SolutionSizeAboveThreshold(Solution solution)
         {
-            var workspace = solution.Workspace;
-            if (workspace.Kind == WorkspaceKind.RemoteWorkspace ||
-                workspace.Kind == WorkspaceKind.RemoteTemporaryWorkspace)
-            {
-                // Storage is always available in the remote server.
-                return true;
-            }
+            //var workspace = solution.Workspace;
+            //if (workspace.Kind == WorkspaceKind.RemoteWorkspace ||
+            //    workspace.Kind == WorkspaceKind.RemoteTemporaryWorkspace)
+            //{
+            //    // Storage is always available in the remote server.
+            //    return true;
+            //}
 
-            if (_solutionSizeTracker == null)
-            {
-                return false;
-            }
+            //if (_solutionSizeTracker == null)
+            //{
+            //    return false;
+            //}
 
-            var size = _solutionSizeTracker.GetSolutionSize(solution.Workspace, solution.Id);
-            var threshold = this._optionService.GetOption(StorageOptions.SolutionSizeThreshold);
-            return size >= threshold;
+            //var size = _solutionSizeTracker.GetSolutionSize(solution.Workspace, solution.Id);
+            //var threshold = this._optionService.GetOption(StorageOptions.SolutionSizeThreshold);
+            //return size >= threshold;
+            return true;
         }
 
         private ReferenceCountedDisposable<IChecksummedPersistentStorage> TryCreatePersistentStorage(Solution solution, string workingFolderPath)

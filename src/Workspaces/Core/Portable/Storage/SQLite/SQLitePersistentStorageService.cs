@@ -96,12 +96,7 @@ namespace Microsoft.CodeAnalysis.SQLite
             }
 
             // try to get db ownership lock. if someone else already has the lock. it will throw
-            var dbOwnershipLock = TryGetDatabaseOwnership(databaseFilePath);
-            if (dbOwnershipLock == null)
-            {
-                storage = null;
-                return false;
-            }
+            IDisposable dbOwnershipLock = null;
 
             SQLitePersistentStorage sqlStorage = null;
             try

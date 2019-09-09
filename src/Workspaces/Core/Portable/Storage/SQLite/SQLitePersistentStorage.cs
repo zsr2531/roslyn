@@ -187,7 +187,7 @@ namespace Microsoft.CodeAnalysis.SQLite
             finally
             {
                 // let the lock go
-                _dbOwnershipLock.Dispose();
+                _dbOwnershipLock?.Dispose();
             }
         }
 

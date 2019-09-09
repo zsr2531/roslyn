@@ -114,17 +114,6 @@ namespace Microsoft.CodeAnalysis.Storage
 
         private bool DatabaseSupported(Solution solution, bool checkBranchId)
         {
-            if (solution.FilePath == null)
-            {
-                return false;
-            }
-
-            if (checkBranchId && solution.BranchId != solution.Workspace.PrimaryBranchId)
-            {
-                // we only use database for primary solution. (Ex, forked solution will not use database)
-                return false;
-            }
-
             return true;
         }
 

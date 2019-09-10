@@ -36,6 +36,20 @@ Microsoft.CodeAnalysis.Solution.WithAnalyzerConfigDocumentText(Microsoft.CodeAna
 Microsoft.CodeAnalysis.Solution.WithAnalyzerConfigDocumentText(Microsoft.CodeAnalysis.DocumentId documentId, Microsoft.CodeAnalysis.TextAndVersion textAndVersion, Microsoft.CodeAnalysis.PreservationMode mode = Microsoft.CodeAnalysis.PreservationMode.PreserveValue) -> Microsoft.CodeAnalysis.Solution
 Microsoft.CodeAnalysis.Solution.WithAnalyzerConfigDocumentTextLoader(Microsoft.CodeAnalysis.DocumentId documentId, Microsoft.CodeAnalysis.TextLoader loader, Microsoft.CodeAnalysis.PreservationMode mode) -> Microsoft.CodeAnalysis.Solution
 Microsoft.CodeAnalysis.Solution.WithProjectDefaultNamespace(Microsoft.CodeAnalysis.ProjectId projectId, string defaultNamespace) -> Microsoft.CodeAnalysis.Solution
+Microsoft.CodeAnalysis.SymbolKey
+Microsoft.CodeAnalysis.SymbolKey.Resolve(Microsoft.CodeAnalysis.Compilation compilation, bool ignoreAssemblyKey = false, bool resolveLocations = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> Microsoft.CodeAnalysis.SymbolKeyResolution
+Microsoft.CodeAnalysis.SymbolKey.SymbolKey(string data) -> void
+Microsoft.CodeAnalysis.SymbolKeyExtensions
+Microsoft.CodeAnalysis.SymbolKeyResolution
+Microsoft.CodeAnalysis.SymbolKeyResolution.CandidateReason.get -> Microsoft.CodeAnalysis.CandidateReason
+Microsoft.CodeAnalysis.SymbolKeyResolution.CandidateSymbols.get -> System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.ISymbol>
+Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerable<TSymbol>
+Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerable<TSymbol>.GetEnumerator() -> Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerator<TSymbol>
+Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerator<TSymbol>
+Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerator<TSymbol>.Current.get -> TSymbol
+Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerator<TSymbol>.MoveNext() -> bool
+Microsoft.CodeAnalysis.SymbolKeyResolution.GetEnumerator() -> Microsoft.CodeAnalysis.SymbolKeyResolution.Enumerator<Microsoft.CodeAnalysis.ISymbol>
+Microsoft.CodeAnalysis.SymbolKeyResolution.Symbol.get -> Microsoft.CodeAnalysis.ISymbol
 Microsoft.CodeAnalysis.TextDocumentKind
 Microsoft.CodeAnalysis.TextDocumentKind.AdditionalDocument = 1 -> Microsoft.CodeAnalysis.TextDocumentKind
 Microsoft.CodeAnalysis.TextDocumentKind.AnalyzerConfigDocument = 2 -> Microsoft.CodeAnalysis.TextDocumentKind
@@ -92,12 +106,14 @@ override Microsoft.CodeAnalysis.AdhocWorkspace.CloseAnalyzerConfigDocument(Micro
 override Microsoft.CodeAnalysis.AdhocWorkspace.OpenAnalyzerConfigDocument(Microsoft.CodeAnalysis.DocumentId documentId, bool activate = true) -> void
 override Microsoft.CodeAnalysis.FileTextLoader.LoadTextAndVersionAsync(Microsoft.CodeAnalysis.Workspace workspace, Microsoft.CodeAnalysis.DocumentId documentId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<Microsoft.CodeAnalysis.TextAndVersion>
 override Microsoft.CodeAnalysis.Options.OptionKey.ToString() -> string
+override Microsoft.CodeAnalysis.SymbolKey.ToString() -> string
 static Microsoft.CodeAnalysis.Classification.ClassificationTypeNames.AdditiveTypeNames.get -> System.Collections.Immutable.ImmutableArray<string>
 static Microsoft.CodeAnalysis.CodeActions.CodeAction.Create(string title, System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.CodeActions.CodeAction> nestedActions, bool isInlinable) -> Microsoft.CodeAnalysis.CodeActions.CodeAction
 static Microsoft.CodeAnalysis.FindSymbols.SymbolFinder.FindSourceDeclarationsWithPatternAsync(Microsoft.CodeAnalysis.Project project, string pattern, Microsoft.CodeAnalysis.SymbolFilter filter, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.ISymbol>>
 static Microsoft.CodeAnalysis.FindSymbols.SymbolFinder.FindSourceDeclarationsWithPatternAsync(Microsoft.CodeAnalysis.Project project, string pattern, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.ISymbol>>
 static Microsoft.CodeAnalysis.FindSymbols.SymbolFinder.FindSourceDeclarationsWithPatternAsync(Microsoft.CodeAnalysis.Solution solution, string pattern, Microsoft.CodeAnalysis.SymbolFilter filter, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.ISymbol>>
 static Microsoft.CodeAnalysis.FindSymbols.SymbolFinder.FindSourceDeclarationsWithPatternAsync(Microsoft.CodeAnalysis.Solution solution, string pattern, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.ISymbol>>
+static Microsoft.CodeAnalysis.SymbolKeyExtensions.GetSymbolKey(this Microsoft.CodeAnalysis.ISymbol symbol, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> Microsoft.CodeAnalysis.SymbolKey
 static readonly Microsoft.CodeAnalysis.CodeStyle.NotificationOption.Silent -> Microsoft.CodeAnalysis.CodeStyle.NotificationOption
 virtual Microsoft.CodeAnalysis.FileTextLoader.CreateText(System.IO.Stream stream, Microsoft.CodeAnalysis.Workspace workspace) -> Microsoft.CodeAnalysis.Text.SourceText
 virtual Microsoft.CodeAnalysis.Workspace.ApplyAnalyzerConfigDocumentAdded(Microsoft.CodeAnalysis.DocumentInfo info, Microsoft.CodeAnalysis.Text.SourceText text) -> void

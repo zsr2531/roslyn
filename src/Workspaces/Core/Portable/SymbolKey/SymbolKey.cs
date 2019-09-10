@@ -82,7 +82,7 @@ namespace Microsoft.CodeAnalysis
     /// keys.  As such, only persist if using for a cache that can be regenerated if necessary.
     /// </para>
     /// </summary>
-    internal partial struct SymbolKey
+    public partial struct SymbolKey
     {
         /// <summary>
         /// Current format version.  Any time we change anything about our format, we should

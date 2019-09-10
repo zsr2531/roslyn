@@ -2,7 +2,7 @@
 
 namespace Microsoft.CodeAnalysis
 {
-    internal partial struct SymbolKeyResolution
+    public partial struct SymbolKeyResolution
     {
         public struct Enumerable<TSymbol> where TSymbol : ISymbol
         {

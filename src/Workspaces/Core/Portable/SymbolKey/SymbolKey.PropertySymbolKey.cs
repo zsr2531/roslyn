@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace Microsoft.CodeAnalysis
 {
-    internal partial struct SymbolKey
+    public partial struct SymbolKey
     {
         private static class PropertySymbolKey
         {

@@ -19,6 +19,8 @@ namespace Microsoft.CodeAnalysis.FindUsages
     /// </summary>
     public abstract partial class DefinitionItem
     {
+        public const string DefinitionSymbolKey = nameof(DefinitionSymbolKey);
+
         // Existing behavior is to do up to two lookups for 3rd party navigation for FAR.  One
         // for the symbol itself and one for a 'fallback' symbol.  For example, if we're FARing
         // on a constructor, then the fallback symbol will be the actual type that the constructor

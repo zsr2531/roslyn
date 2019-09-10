@@ -25,6 +25,7 @@ Microsoft.CodeAnalysis.Structure.BlockStructureService.BlockStructureService() -
 Microsoft.CodeAnalysis.Structure.BlockTypes
 abstract Microsoft.CodeAnalysis.Structure.BlockStructureService.GetBlockStructureAsync(Microsoft.CodeAnalysis.Document document, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<Microsoft.CodeAnalysis.Structure.BlockStructure>
 abstract Microsoft.CodeAnalysis.Structure.BlockStructureService.Language.get -> string
+const Microsoft.CodeAnalysis.FindUsages.DefinitionItem.DefinitionSymbolKey = "DefinitionSymbolKey" -> string
 const Microsoft.CodeAnalysis.Structure.BlockTypes.Comment = "Comment" -> string
 const Microsoft.CodeAnalysis.Structure.BlockTypes.Conditional = "Conditional" -> string
 const Microsoft.CodeAnalysis.Structure.BlockTypes.Expression = "Expression" -> string

@@ -169,6 +169,9 @@ namespace Microsoft.CodeAnalysis.Editor.FindUsages
                 }
             }
 
+            var definitionSymbolKey = definition.GetSymbolKey().ToString();
+            properties = properties.Add(DefinitionItem.DefinitionSymbolKey, definitionSymbolKey);
+
             return properties;
         }
 

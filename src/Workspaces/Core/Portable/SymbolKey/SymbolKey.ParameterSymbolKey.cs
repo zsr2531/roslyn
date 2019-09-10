@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 
 namespace Microsoft.CodeAnalysis
 {
-    internal partial struct SymbolKey
+    public partial struct SymbolKey
     {
         private static class ParameterSymbolKey
         {

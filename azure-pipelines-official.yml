@@ -31,6 +31,7 @@ stages:
       - msbuild
       - visualstudio
       - DotNetFramework
+      - Agent.Name -equals DDMBLDW131
     timeoutInMinutes: 360
 
     steps:

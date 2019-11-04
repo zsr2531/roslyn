@@ -126,6 +126,16 @@ namespace Microsoft.VisualStudio.LanguageServices {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to A new .editorconfig file was detected at the root of your solution. Would you like to make it a solution item?.
+        /// </summary>
+        internal static string A_new_editorconfig_file_was_detected_at_the_root_of_your_solution_Would_you_like_to_make_it_a_solution_item {
+            get {
+                return ResourceManager.GetString("A_new_editorconfig_file_was_detected_at_the_root_of_your_solution_Would_you_like_" +
+                        "to_make_it_a_solution_item", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to A new namespace will be created.
         /// </summary>
         internal static string A_new_namespace_will_be_created {
@@ -873,15 +883,6 @@ namespace Microsoft.VisualStudio.LanguageServices {
         internal static string Enable_navigation_to_decompiled_sources {
             get {
                 return ResourceManager.GetString("Enable_navigation_to_decompiled_sources", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Enable nullable reference analysis IDE features.
-        /// </summary>
-        internal static string Enable_nullable_reference_analysis_IDE_features {
-            get {
-                return ResourceManager.GetString("Enable_nullable_reference_analysis_IDE_features", resourceCulture);
             }
         }
         
@@ -2424,6 +2425,15 @@ namespace Microsoft.VisualStudio.LanguageServices {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Prefer &apos;System.HashCode&apos; in &apos;GetHashCode&apos;.
+        /// </summary>
+        internal static string Prefer_System_HashCode_in_GetHashCode {
+            get {
+                return ResourceManager.GetString("Prefer_System_HashCode_in_GetHashCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to prefer throwing properties.
         /// </summary>
         internal static string prefer_throwing_properties {
@@ -2714,6 +2724,15 @@ namespace Microsoft.VisualStudio.LanguageServices {
         internal static string Required_Suffix_colon {
             get {
                 return ResourceManager.GetString("Required_Suffix_colon", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Requires &apos;System.HashCode&apos; be present in project.
+        /// </summary>
+        internal static string Requires_System_HashCode_be_present_in_project {
+            get {
+                return ResourceManager.GetString("Requires_System_HashCode_be_present_in_project", resourceCulture);
             }
         }
         

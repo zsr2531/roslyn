@@ -1364,27 +1364,56 @@ namespace Microsoft.CodeAnalysis.FlowAnalysis
             return result ?? MakeInvalidOperation(originalOperation.Syntax, originalOperation.Type, ImmutableArray<IOperation>.Empty);
         }
 
-        private void VisitStatements(ArrayBuilder<IOperation> statements)
-        {
-            foreach (var statement in statements)
-            {
-                VisitStatement(statement);
-            }
-        }
-
         private void VisitStatements(ImmutableArray<IOperation> statements)
         {
-            foreach (var statement in statements)
+            for (int i = 0; i < statements.Length; i++)
             {
-                VisitStatement(statement);
+                if (VisitStatementsOneOrAll(statements[i], statements, i))
+                {
+                    break;
+                }
             }
         }
 
-        private void VisitStatements(IEnumerable<IOperation> statements)
+        /// <summary>
+        /// Either visits a single operation, or a using <see cref="IVariableDeclarationGroupOperation"/> and all subsequent statements
+        /// </summary>
+        /// <param name="operation">The statement to visit</param>
+        /// <param name="statements">All statements in the block containing this node</param>
+        /// <param name="startIndex">The current statement being visited in <paramref name="statements"/></param>
+        /// <returns>True if this visited all of the statements</returns>
+        /// <remarks>
+        /// The operation being visited is not necessarily equal to statements[startIndex]. 
+        /// When traversing down a set of labels, we set operation to the label.Operation and recurse, but statements[startIndex] still refers to the original parent label 
+        /// as we haven't actually moved down the original statement list
+        /// </remarks>
+        private bool VisitStatementsOneOrAll(IOperation operation, ImmutableArray<IOperation> statements, int startIndex)
         {
-            foreach (var statement in statements)
+            switch (operation)
             {
-                VisitStatement(statement);
+                case IVariableDeclarationGroupOperation declarationGroup when declarationGroup.DeclarationKind == VariableDeclarationKind.Using || declarationGroup.DeclarationKind == VariableDeclarationKind.AsynchronousUsing:
+                    var followingStatements = ImmutableArray.Create(statements, startIndex + 1, statements.Length - startIndex - 1);
+                    VisitUsingVariableDeclarationOperation(declarationGroup, followingStatements);
+                    return true;
+                case ILabeledOperation { Operation: { } } labelOperation:
+                    return visitPossibleUsingDeclarationInLabel(labelOperation);
+                default:
+                    VisitStatement(operation);
+                    return false;
+            }
+
+            bool visitPossibleUsingDeclarationInLabel(ILabeledOperation labelOperation)
+            {
+                var savedCurrentStatement = _currentStatement;
+                _currentStatement = labelOperation;
+
+                StartVisitingStatement(labelOperation);
+                VisitLabel(labelOperation.Label);
+                bool visitedAll = VisitStatementsOneOrAll(labelOperation.Operation, statements, startIndex);
+                FinishVisitingStatement(labelOperation);
+
+                _currentStatement = savedCurrentStatement;
+                return visitedAll;
             }
         }
 
@@ -3552,8 +3581,14 @@ oneMoreTime:
         public override IOperation VisitLabeled(ILabeledOperation operation, int? captureIdForResult)
         {
             StartVisitingStatement(operation);
+            VisitLabel(operation.Label);
+            VisitStatement(operation.Operation);
+            return FinishVisitingStatement(operation);
+        }
 
-            BasicBlockBuilder labeled = GetLabeledOrNewBlock(operation.Label);
+        public void VisitLabel(ILabelSymbol operation)
+        {
+            BasicBlockBuilder labeled = GetLabeledOrNewBlock(operation);
 
             if (labeled.Ordinal != -1)
             {
@@ -3562,8 +3597,6 @@ oneMoreTime:
             }
 
             AppendNewBlock(labeled);
-            VisitStatement(operation.Operation);
-            return FinishVisitingStatement(operation);
         }
 
         private BasicBlockBuilder GetLabeledOrNewBlock(ILabelSymbol labelOpt)
@@ -3640,17 +3673,21 @@ oneMoreTime:
         public override IOperation VisitUsing(IUsingOperation operation, int? captureIdForResult)
         {
             StartVisitingStatement(operation);
+            HandleUsingOperationParts(operation.Resources, operation.Body, operation.Locals, operation.IsAsynchronous);
+            return FinishVisitingStatement(operation);
+        }
 
-            ITypeSymbol iDisposable = operation.IsAsynchronous
+        private void HandleUsingOperationParts(IOperation resources, IOperation body, ImmutableArray<ILocalSymbol> locals, bool isAsynchronous)
+        {
+            var usingRegion = new RegionBuilder(ControlFlowRegionKind.LocalLifetime, locals: locals);
+            EnterRegion(usingRegion);
+
+            ITypeSymbol iDisposable = isAsynchronous
                 ? _compilation.CommonGetWellKnownType(WellKnownType.System_IAsyncDisposable)
                 : _compilation.GetSpecialType(SpecialType.System_IDisposable);
 
-            var usingRegion = new RegionBuilder(ControlFlowRegionKind.LocalLifetime, locals: operation.Locals);
-            EnterRegion(usingRegion);
-
-            if (operation.Resources.Kind == OperationKind.VariableDeclarationGroup)
+            if (resources is IVariableDeclarationGroupOperation declarationGroup)
             {
-                var declarationGroup = (IVariableDeclarationGroupOperation)operation.Resources;
                 var resourceQueue = ArrayBuilder<(IVariableDeclarationOperation, IVariableDeclaratorOperation)>.GetInstance(declarationGroup.Declarations.Length);
 
                 foreach (IVariableDeclarationOperation declaration in declarationGroup.Declarations)
@@ -3667,11 +3704,11 @@ oneMoreTime:
             }
             else
             {
-                Debug.Assert(operation.Resources.Kind != OperationKind.VariableDeclaration);
-                Debug.Assert(operation.Resources.Kind != OperationKind.VariableDeclarator);
+                Debug.Assert(resources.Kind != OperationKind.VariableDeclaration);
+                Debug.Assert(resources.Kind != OperationKind.VariableDeclarator);
 
                 EvalStackFrame frame = PushStackFrame();
-                IOperation resource = Visit(operation.Resources);
+                IOperation resource = Visit(resources);
 
                 if (shouldConvertToIDisposableBeforeTry(resource))
                 {
@@ -3689,13 +3726,12 @@ oneMoreTime:
 
             Debug.Assert(_currentRegion == usingRegion);
             LeaveRegion();
-            return FinishVisitingStatement(operation);
 
             void processQueue(ArrayBuilder<(IVariableDeclarationOperation, IVariableDeclaratorOperation)> resourceQueueOpt)
             {
                 if (resourceQueueOpt == null || resourceQueueOpt.Count == 0)
                 {
-                    VisitStatement(operation.Body);
+                    VisitStatement(body);
                 }
                 else
                 {
@@ -3764,7 +3800,7 @@ oneMoreTime:
 
                 LeaveRegion();
 
-                AddDisposingFinally(resource, knownToImplementIDisposable: true, iDisposable, operation.IsAsynchronous);
+                AddDisposingFinally(resource, knownToImplementIDisposable: true, iDisposable, isAsynchronous);
 
                 Debug.Assert(_currentRegion.Kind == ControlFlowRegionKind.TryAndFinally);
                 LeaveRegion();
@@ -5334,6 +5370,8 @@ oneMoreTime:
 
         public override IOperation VisitVariableDeclarationGroup(IVariableDeclarationGroupOperation operation, int? captureIdForResult)
         {
+            Debug.Assert(operation.DeclarationKind == VariableDeclarationKind.Default);
+
             // Anything that has a declaration group (such as for loops) needs to handle them directly itself,
             // this should only be encountered by the visitor for declaration statements.
             StartVisitingStatement(operation);
@@ -6146,7 +6184,7 @@ oneMoreTime:
         private IOperation VisitNoneOperationStatement(IOperation operation)
         {
             Debug.Assert(_currentStatement == operation);
-            VisitStatements(operation.Children);
+            VisitStatements(operation.Children.ToImmutableArray());
             return new NoneOperation(ImmutableArray<IOperation>.Empty, semanticModel: null, operation.Syntax, operation.ConstantValue, IsImplicit(operation));
         }
 
@@ -6617,20 +6655,19 @@ oneMoreTime:
                 result = visitInvalidOperationExpression(operation);
             }
 
-            children.Free();
             return result;
 
             IOperation visitInvalidOperationStatement(IInvalidOperation invalidOperation)
             {
                 Debug.Assert(_currentStatement == invalidOperation);
-                VisitStatements(children);
+                VisitStatements(children.ToImmutableAndFree());
                 return new InvalidOperation(ImmutableArray<IOperation>.Empty, semanticModel: null, invalidOperation.Syntax, invalidOperation.Type, invalidOperation.ConstantValue, IsImplicit(invalidOperation));
             }
 
             IOperation visitInvalidOperationExpression(IInvalidOperation invalidOperation)
             {
                 return PopStackFrame(PushStackFrame(),
-                                     new InvalidOperation(VisitArray(invalidOperation.Children.ToImmutableArray()), semanticModel: null,
+                                     new InvalidOperation(VisitArray(children.ToImmutableAndFree()), semanticModel: null,
                                                                  invalidOperation.Syntax, invalidOperation.Type, invalidOperation.ConstantValue, IsImplicit(operation)));
             }
         }
@@ -6833,6 +6870,35 @@ oneMoreTime:
 
             // result = captureOutput
             return GetCaptureReference(captureOutput, operation);
+        }
+
+        private void VisitUsingVariableDeclarationOperation(IVariableDeclarationGroupOperation operation, ImmutableArray<IOperation> statements)
+        {
+            IOperation saveCurrentStatement = _currentStatement;
+            _currentStatement = operation;
+            StartVisitingStatement(operation);
+
+            var declarationKind = operation.DeclarationKind;
+            Debug.Assert(declarationKind == VariableDeclarationKind.Using || declarationKind == VariableDeclarationKind.AsynchronousUsing);
+
+            // a using statement introduces a 'logical' block after declaration, we synthesize one here in order to analyze it like a regular using 
+            BlockOperation logicalBlock = new BlockOperation(
+                operations: statements,
+                locals: ImmutableArray<ILocalSymbol>.Empty,
+                ((Operation)operation).OwningSemanticModel,
+                operation.Syntax,
+                operation.Type,
+                operation.ConstantValue,
+                isImplicit: true);
+
+            HandleUsingOperationParts(
+                resources: operation,
+                body: logicalBlock,
+                locals: ImmutableArray<ILocalSymbol>.Empty,
+                isAsynchronous: declarationKind == VariableDeclarationKind.AsynchronousUsing);
+
+            FinishVisitingStatement(operation);
+            _currentStatement = saveCurrentStatement;
         }
 
         public IOperation Visit(IOperation operation)

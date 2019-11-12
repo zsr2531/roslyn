@@ -549,7 +549,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         private static BoundNode Rewrite(ImmutableDictionary<BoundExpression, (NullabilityInfo, TypeSymbol)> updatedNullabilities, SnapshotManager? snapshotManager, BoundNode node, ref ImmutableDictionary<Symbol, Symbol>? remappedSymbols)
         {
-            var remappedSymbolsBuilder = ImmutableDictionary.CreateBuilder<Symbol, Symbol>(SymbolEqualityComparer.ConsiderEverything, SymbolEqualityComparer.ConsiderEverything);
+            var remappedSymbolsBuilder = ImmutableDictionary.CreateBuilder<Symbol, Symbol>(Symbols.SymbolEqualityComparer.ConsiderEverything, Symbols.SymbolEqualityComparer.ConsiderEverything);
             if (remappedSymbols is object)
             {
                 // When we're rewriting for the speculative model, there will be a set of originally-mapped symbols, and we need to
@@ -1060,9 +1060,9 @@ namespace Microsoft.CodeAnalysis.CSharp
                 return false;
             }
 
-            HashSet<DiagnosticInfo> useSiteDiagnostics = null;
             if (RequiresSafetyWarningWhenNullIntroduced(targetType))
             {
+                HashSet<DiagnosticInfo> useSiteDiagnostics = null;
                 if (conversion.Kind == ConversionKind.UnsetConversionKind)
                     conversion = this._conversions.ClassifyImplicitConversionFromType(valueType.Type, targetType.Type, ref useSiteDiagnostics);
 
@@ -1310,11 +1310,11 @@ namespace Microsoft.CodeAnalysis.CSharp
         private void SetStateAndTrackForFinally(ref LocalState state, int slot, NullableFlowState newState)
         {
             state[slot] = newState;
-            if (newState == NullableFlowState.MaybeNull && _tryState.HasValue)
+            if (newState == NullableFlowState.MaybeNull && NonMonotonicState.HasValue)
             {
-                var tryState = _tryState.Value;
+                var tryState = NonMonotonicState.Value;
                 tryState[slot] = NullableFlowState.MaybeNull;
-                _tryState = tryState;
+                NonMonotonicState = tryState;
             }
         }
 
@@ -1521,13 +1521,6 @@ namespace Microsoft.CodeAnalysis.CSharp
             return
                 type.IsTypeParameterDisallowingAnnotation() &&
                 !type.IsNullableTypeOrTypeParameter();
-        }
-
-        private static bool RequiresSafetyWarningWhenNullIntroduced(TypeSymbol type, FlowAnalysisAnnotations annotations)
-        {
-            return
-                (annotations & FlowAnalysisAnnotations.MaybeNull) != 0 &&
-                type.IsTypeParameterDisallowingAnnotation();
         }
 
         public override BoundNode VisitLocal(BoundLocal node)
@@ -3187,10 +3180,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         /// </summary>
         private void ReportMaybeNullFromTypeParameterValueIfNeeded(BoundExpression expr, TypeWithState typeWithState, FlowAnalysisAnnotations annotations)
         {
-            if (!expr.IsSuppressed && !typeWithState.IsNotNull && RequiresSafetyWarningWhenNullIntroduced(typeWithState.Type, annotations))
-            {
-                ReportDiagnostic(ErrorCode.WRN_ExpressionMayIntroduceNullT, expr.Syntax, GetTypeAsDiagnosticArgument(expr.Type));
-            }
+            // Not implemented. See https://github.com/dotnet/roslyn/issues/38638 for an alternative.
         }
 
         private void LearnFromEqualsMethod(MethodSymbol method, BoundCall node, TypeWithState receiverType, ImmutableArray<VisitArgumentResult> results)
@@ -6035,7 +6025,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             return VisitDeconstructionAssignmentOperator(node, rightResultOpt: null);
         }
 
-        private BoundNode VisitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node, TypeWithState? rightResultOpt = null)
+        private BoundNode VisitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node, TypeWithState? rightResultOpt)
         {
             var previousDisableNullabilityAnalysis = _disableNullabilityAnalysis;
             _disableNullabilityAnalysis = true;
@@ -6134,7 +6124,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 if (invocation.InvokedAsExtensionMethod)
                 {
                     // Check nullability for `this` parameter
-                    CheckExtensionMethodThisNullability(right, conversion, deconstructMethod.Parameters[0], rightResult);
+                    var argConversion = RemoveConversion(invocation.Arguments[0], includeExplicitConversions: false).conversion;
+                    CheckExtensionMethodThisNullability(right, argConversion, deconstructMethod.Parameters[0], rightResult);
                 }
 
                 for (int i = 0; i < n; i++)
@@ -6901,7 +6892,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 var assignment = node.DeconstructionOpt.DeconstructionAssignment;
 
                 // Visit the assignment as a deconstruction with an explicit type
-                VisitDeconstructionAssignmentOperator(assignment, sourceState);
+                VisitDeconstructionAssignmentOperator(assignment, sourceState.HasNullType ? (TypeWithState?)null : sourceState);
 
                 // https://github.com/dotnet/roslyn/issues/35010: if the iteration variable is a tuple deconstruction, we need to put something in the tree
                 Visit(node.IterationVariableType);
@@ -7872,15 +7863,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
         }
 
-        protected override void Meet(ref LocalState self, ref LocalState other)
+        protected override bool Meet(ref LocalState self, ref LocalState other)
         {
             if (!self.Reachable)
-                return;
+                return false;
 
             if (!other.Reachable)
             {
                 self = other.Clone();
-                return;
+                return true;
             }
 
             if (self.Capacity != other.Capacity)
@@ -7889,7 +7880,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 Normalize(ref other);
             }
 
-            self.Meet(in other);
+            return self.Meet(in other);
         }
 
         protected override bool Join(ref LocalState self, ref LocalState other)
@@ -7999,7 +7990,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             public bool Equals((NullabilityInfo info, TypeSymbol type) x, (NullabilityInfo info, TypeSymbol type) y)
             {
                 return x.info.Equals(y.info) &&
-                       SymbolEqualityComparer.ConsiderEverything.Equals(x.type, y.type);
+                       Symbols.SymbolEqualityComparer.ConsiderEverything.Equals(x.type, y.type);
             }
 
             public int GetHashCode((NullabilityInfo info, TypeSymbol type) obj)

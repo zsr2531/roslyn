@@ -748,7 +748,6 @@
           "testCases": [
             "VSPE.OptProfTests.vs_asl_cs_scenario",
             "VSPE.OptProfTests.vs_asl_vb_scenario",
-            "VSPE.OptProfTests.vs_ddbvtqa_vbwi",
             "VSPE.OptProfTests.vs_perf_designtime_editor_intellisense_globalcompletionlist_cs",
             "VSPE.OptProfTests.vs_perf_designtime_ide_searchtest",
             "VSPE.OptProfTests.vs_perf_designtime_solution_build_vb_australiangovernment",
@@ -765,7 +764,6 @@
         {
           "container": "XamlOptProf",
           "testCases": [
-            "Microsoft.Test.Performance.XamlOptProfCreateTests.UwpCreateProject_DesignerIsolated",
             "Microsoft.Test.Performance.XamlOptProfCreateTests.WpfCreateProject_DesignerIsolated"
           ]
         }
@@ -797,7 +795,6 @@
           "testCases": [
             "VSPE.OptProfTests.vs_asl_cs_scenario",
             "VSPE.OptProfTests.vs_asl_vb_scenario",
-            "VSPE.OptProfTests.vs_ddbvtqa_vbwi",
             "VSPE.OptProfTests.vs_perf_designtime_editor_intellisense_globalcompletionlist_cs",
             "VSPE.OptProfTests.vs_perf_designtime_ide_searchtest",
             "VSPE.OptProfTests.vs_perf_designtime_solution_build_vb_australiangovernment",
@@ -814,7 +811,6 @@
         {
           "container": "XamlOptProf",
           "testCases": [
-            "Microsoft.Test.Performance.XamlOptProfCreateTests.UwpCreateProject_DesignerIsolated",
             "Microsoft.Test.Performance.XamlOptProfCreateTests.WpfCreateProject_DesignerIsolated"
           ]
         }

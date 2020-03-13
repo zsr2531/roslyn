@@ -1719,7 +1719,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 #if DEBUG
                 var diagnostics = new DiagnosticBag();
                 ImmutableDictionary<Symbol, Symbol> ignored = null;
-                _ = RewriteNullableBoundNodesWithSnapshots(boundOuterExpression, incrementalBinder, diagnostics, takeSnapshots: false, snapshotManager: out _, remappedSymbols: ref ignored);
+                _ = RewriteNullableBoundNodesWithSnapshots(boundOuterExpression, incrementalBinder, diagnostics, takeSnapshots: false, snapshotManager: out _, remappedSymbols: ref ignored, avoidRewrite: !Compilation.NullableSemanticAnalysisEnabled);
 #endif
 
                 nodes = GuardedAddBoundTreeAndGetBoundNodeFromMap(lambdaOrQuery, boundOuterExpression);
@@ -1974,12 +1974,20 @@ done:
             void bindAndRewrite()
             {
                 var remappedSymbols = _parentRemappedSymbolsOpt;
-                boundRoot = RewriteNullableBoundNodesWithSnapshots(boundRoot, binder, diagnostics, takeSnapshots: true, out var snapshotManager, ref remappedSymbols);
+                boundRoot = RewriteNullableBoundNodesWithSnapshots(boundRoot, binder, diagnostics, takeSnapshots: true, out var snapshotManager, ref remappedSymbols, shouldAvoidRewrite(Compilation));
 #if DEBUG
                 // Don't actually cache the results if the nullable analysis is not enabled in debug mode.
                 if (!Compilation.NullableSemanticAnalysisEnabled) return;
 #endif
                 GuardedAddBoundTreeForStandaloneSyntax(bindableRoot, boundRoot, snapshotManager, remappedSymbols);
+
+                static bool shouldAvoidRewrite(CSharpCompilation comp) =>
+#if DEBUG
+                    !comp.NullableSemanticAnalysisEnabled;
+#else
+                    false;
+#endif
+
             }
         }
 
@@ -1993,7 +2001,8 @@ done:
             DiagnosticBag diagnostics,
             bool takeSnapshots,
             out NullableWalker.SnapshotManager snapshotManager,
-            ref ImmutableDictionary<Symbol, Symbol>? remappedSymbols);
+            ref ImmutableDictionary<Symbol, Symbol>? remappedSymbols,
+            bool avoidRewrite);
 #nullable restore
 
         /// <summary>

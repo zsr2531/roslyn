@@ -117,7 +117,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             set => base.TopLevelNullability = value;
         }
 
-        public CodeAnalysis.ITypeSymbol GetPublicTypeSymbol()
+        public CodeAnalysis.ITypeSymbol? GetPublicTypeSymbol()
             => Type?.GetITypeSymbol(TopLevelNullability.FlowState.ToAnnotation());
     }
 
